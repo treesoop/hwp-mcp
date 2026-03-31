@@ -1,5 +1,5 @@
 [project]
-name = "hangul-mcp"
+name = "hwp-mcp"
 version = "0.1.0"
 description = "MCP server for reading and writing HWP/HWPX Korean word processor files. Extracts text, tables, and images from Hangul documents."
 readme = "README.md"
