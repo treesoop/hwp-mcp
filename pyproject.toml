@@ -1,6 +1,6 @@
 [project]
 name = "hwp-mcp"
-version = "0.1.0"
+version = "0.1.1"
 description = "MCP server for reading and writing HWP/HWPX Korean word processor files. Extracts text, tables, and images from Hangul documents."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -20,7 +20,7 @@ dependencies = [
 ]
 
 [project.scripts]
-hangul-mcp = "hangul_mcp.__main__:main"
+hwp-mcp = "hangul_mcp.__main__:main"
 
 [build-system]
 requires = ["hatchling"]
