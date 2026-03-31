@@ -5,11 +5,15 @@ import os
 import base64
 from mcp.server.fastmcp import FastMCP
 
-from hangul_mcp.hwp_parser import HWPParser
-from hangul_mcp.hwpx_parser import HWPXParser
-from hangul_mcp.hwp_writer import hwp_replace_text, hwpx_replace_text, create_hwpx
+from hwp_parser import HWPParser
+from hwpx_parser import HWPXParser
+from hwp_writer import hwp_replace_text, hwpx_replace_text, create_hwpx
 
-mcp = FastMCP("hwp-mcp")
+mcp = FastMCP(
+    "hwp-reader",
+    version="0.1.0",
+    description="HWP/HWPX 한글 문서 파일 읽기 MCP 서버 - 텍스트, 표, 이미지 추출",
+)
 
 
 def _get_parser(file_path: str):
