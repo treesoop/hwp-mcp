@@ -1,0 +1,30 @@
+[project]
+name = "hangul-mcp"
+version = "0.1.0"
+description = "MCP server for reading and writing HWP/HWPX Korean word processor files. Extracts text, tables, and images from Hangul documents."
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [{ name = "Treesoop", email = "official@treesoop.com" }]
+keywords = ["hwp", "hwpx", "hangul", "mcp", "llm", "korean", "word-processor"]
+license = { text = "MIT" }
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Topic :: Text Processing :: General",
+]
+dependencies = [
+    "mcp>=1.0.0",
+    "olefile>=0.47",
+]
+
+[project.scripts]
+hangul-mcp = "hangul_mcp.__main__:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/hangul_mcp"]
