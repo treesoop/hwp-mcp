@@ -52,7 +52,7 @@ Node.js 20 이상 필요.
 
 ## 도구 목록
 
-`hwp-mcp` v0.2가 노출하는 **29개 MCP 도구**입니다. 읽기·렌더는 `.hwp`/`.hwpx` 모두 지원, 쓰기는 `.hwpx` 전용입니다.
+`hwp-mcp` v0.2가 노출하는 **33개 MCP 도구**입니다. 읽기·렌더는 `.hwp`/`.hwpx` 모두 지원, 쓰기는 `.hwpx` 전용입니다.
 
 ### 읽기 (5)
 
@@ -92,25 +92,34 @@ Node.js 20 이상 필요.
 | `set_hwp_cell_text` | ✅ | 표 셀 (행, 열) 텍스트 직접 설정 |
 | `set_hwp_field_value` | ✅ | 필드 값 설정 |
 
-### 쓰기 — 구조 (7)
+### 쓰기 — 구조 (9)
 
 | 도구 | `.hwpx` | 설명 |
 |------|:---:|------|
 | `append_hwp_paragraph` | ✅ | 본문 끝에 새 문단 |
 | `delete_hwp_paragraph` | ✅ | N번째 문단 삭제 |
-| `append_hwp_table_row` | ✅ | 표 마지막에 새 행 추가 |
+| `append_hwp_table_row` | ✅ | 표 마지막에 새 행 |
 | `delete_hwp_table_row` | ✅ | 표 행 삭제 |
-| `append_hwp_table_column` | ✅ | 표 끝에 새 열 추가 (모든 행에) |
+| `append_hwp_table_column` | ✅ | 표 끝에 새 열 (모든 행에) |
 | `delete_hwp_table_column` | ✅ | 표 열 삭제 |
-| `replace_hwp_image` | ✅ | 임베디드 이미지를 다른 파일로 교체 |
+| `merge_hwp_cells_horizontal` | ✅ | 가로 셀 병합 (colSpan) |
+| `merge_hwp_cells_vertical` | ✅ | 세로 셀 병합 (rowSpan) |
+| `replace_hwp_image` | ✅ | 임베디드 이미지 교체 |
 
-### 쓰기 — 이미지 / 서식 / 신규 (4)
+### 쓰기 — 서식 (2)
+
+| 도구 | `.hwpx` | 설명 |
+|------|:---:|------|
+| `apply_hwp_text_style` | ✅ | 글자 색·볼드·이탤릭·밑줄·크기 (charPr 추가) |
+| `apply_hwp_paragraph_style` | ✅ | 문단 정렬·들여쓰기·줄간격 (paraPr 추가) |
+
+### 쓰기 — 이미지 / 표 / 신규 (4)
 
 | 도구 | `.hwpx` | 설명 |
 |------|:---:|------|
 | `insert_hwp_image` | ✅ | 새 이미지 추가 (BinData + manifest + `<hp:pic>`) |
 | `delete_hwp_image` | ✅ | BinData/ 엔트리 삭제 |
-| `apply_hwp_text_style` | ✅ | 글자 색·볼드·이탤릭·밑줄·크기 적용 (charPr 추가) |
+| `insert_hwp_table` | ⚠️ | 새 OWPML 표 삽입 (실험적 — 파일 valid, rhwp 인식 비완전) |
 | `create_hwpx_document` | ✅ | 텍스트로 새 `.hwpx` 만들기 |
 
 ## 컨텐츠 추출 매트릭스
@@ -144,8 +153,12 @@ Node.js 20 이상 필요.
 | 새 문서 생성 (표) | – | ⚠️ | 텍스트 행으로 평탄화 (v0.3에서 진짜 OWPML 표) |
 | 새 이미지 삽입 | ❌ | ✅ | `insert_hwp_image` |
 | 표 열 추가 / 삭제 | ❌ | ✅ | `append_hwp_table_column` / `delete_hwp_table_column` |
+| 셀 병합 (가로·세로) | ❌ | ✅ | `merge_hwp_cells_horizontal` / `merge_hwp_cells_vertical` |
 | 글자 서식 (색·볼드·이탤릭·밑줄·크기) | ❌ | ✅ | `apply_hwp_text_style` |
+| 문단 서식 (정렬·들여쓰기·줄간격) | ❌ | ✅ | `apply_hwp_paragraph_style` |
+| 새 표 삽입 (진짜 OWPML) | ❌ | ⚠️ | `insert_hwp_table` (실험적) |
 | 머리말/꼬리말 신규 삽입 | ❌ | ❌ | v0.3 |
+| 차트·북마크·스타일 정의 | ❌ | ❌ | v0.3 |
 
 > `.hwp` 바이너리 쓰기는 rhwp 0.7.7 의 `exportHwp` 라운드트립 한계로 v0.2에서 미지원. 한컴오피스에서 `.hwpx`로 다른 이름 저장 후 쓰기 도구를 사용하시거나, v0.3 릴리스를 기다려주세요.
 
