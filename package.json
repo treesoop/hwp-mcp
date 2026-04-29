@@ -1,0 +1,34 @@
+{
+  "name": "hwp-mcp",
+  "version": "0.2.0",
+  "description": "MCP server for reading and writing HWP/HWPX (Korean Hangul) documents — built on rhwp.",
+  "type": "module",
+  "license": "MIT",
+  "author": "Treesoop <official@treesoop.com>",
+  "homepage": "https://github.com/treesoop/hwp-mcp",
+  "repository": { "type": "git", "url": "https://github.com/treesoop/hwp-mcp" },
+  "keywords": ["hwp", "hwpx", "hangul", "한글", "mcp", "model-context-protocol", "claude", "cursor", "korean", "hancom", "llm"],
+  "bin": { "hwp-mcp": "dist/server.js" },
+  "main": "dist/server.js",
+  "files": ["dist", "README.md", "LICENSE"],
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/server.js",
+    "dev": "tsx src/server.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "build:fixtures": "tsx test/fixtures/build-fixtures.ts",
+    "prepublishOnly": "npm run build && npm test"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "@rhwp/core": "0.7.x"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.4.0",
+    "vitest": "^2.0.0"
+  }
+}

@@ -1,13 +1,6 @@
-__pycache__/
-*.pyc
-*.egg-info/
-dist/
-build/
-.eggs/
-test_files/
-*.hwp
-*.hwpx
 node_modules/
-package-lock.json
-package.json
+dist/
+*.log
+.DS_Store
 .env
+.vitest-cache/
