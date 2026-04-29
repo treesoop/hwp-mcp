@@ -89,6 +89,34 @@ export async function getHwpFieldValue(args: GetFieldArgs): Promise<string> {
   }
 }
 
+export async function getHwpPageDef(args: FilePathArgs): Promise<string> {
+  let doc;
+  try {
+    doc = await openDocument(args.file_path);
+  } catch (e) {
+    return (e as Error).message;
+  }
+  try {
+    const sectionCount = doc.getSectionCount();
+    const out: string[] = [];
+    for (let s = 0; s < sectionCount; s++) {
+      try {
+        const pageRaw = doc.getPageDef(s);
+        const sectionRaw = doc.getSectionDef(s);
+        out.push(`# section ${s}`);
+        out.push(`pageDef: ${pageRaw}`);
+        out.push(`sectionDef: ${sectionRaw}`);
+        out.push("");
+      } catch (e) {
+        out.push(`section ${s}: ${(e as Error).message}`);
+      }
+    }
+    return out.join("\n");
+  } finally {
+    closeDocument(doc);
+  }
+}
+
 export async function listHwpFields(args: FilePathArgs): Promise<string> {
   let doc;
   try {

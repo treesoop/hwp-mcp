@@ -14,7 +14,7 @@ import {
 } from "./tools/write.js";
 import { renderHwpPage, renderHwpAllPages } from "./tools/render.js";
 import { replaceHwpImage, listHwpBinData } from "./tools/replace-image.js";
-import { getHwpInfo, listHwpFields, getHwpFieldValue } from "./tools/info.js";
+import { getHwpInfo, listHwpFields, getHwpFieldValue, getHwpPageDef } from "./tools/info.js";
 import {
   appendHwpParagraph,
   deleteHwpParagraph,
@@ -122,6 +122,16 @@ const TOOLS = [
     name: "get_hwp_info",
     description:
       "Get document metadata (version, page count, section count, fonts used, totals for tables/images/footnotes/equations/headers/footers). Args: file_path.",
+    inputSchema: {
+      type: "object",
+      properties: { file_path: { type: "string" } },
+      required: ["file_path"],
+    },
+  },
+  {
+    name: "get_hwp_page_def",
+    description:
+      "Get per-section page definition (paper size, margins, columns) and section properties. Useful for understanding document layout. Args: file_path.",
     inputSchema: {
       type: "object",
       properties: { file_path: { type: "string" } },
@@ -508,6 +518,7 @@ const HANDLERS: Record<string, (args: any) => Promise<string>> = {
   render_hwp_page: renderHwpPage,
   render_hwp_all_pages: renderHwpAllPages,
   get_hwp_info: getHwpInfo,
+  get_hwp_page_def: getHwpPageDef,
   list_hwp_fields: listHwpFields,
   get_hwp_field_value: getHwpFieldValue,
   list_hwp_bindata: listHwpBinData,
