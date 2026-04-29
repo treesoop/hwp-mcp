@@ -44,10 +44,17 @@ Node.js 20 이상 필요.
 | 도구 | 설명 |
 |------|-------------|
 | `read_hwp` | 본문 + 표(마크다운) + 이미지 목록까지 한 번에 |
-| `read_hwp_text` | 본문 텍스트만 추출 |
+| `read_hwp_text` | 본문 + 각주 텍스트 추출 |
 | `read_hwp_tables` | 표를 GitHub 마크다운으로 (셀 병합 처리) |
 | `list_hwp_images` | 임베디드 이미지 목록 |
 | `extract_hwp_images` | 이미지를 디스크로 추출 |
+
+### 시각 렌더링 (`.hwp` · `.hwpx` 모두 지원)
+
+| 도구 | 설명 |
+|------|-------------|
+| `render_hwp_page` | 특정 페이지를 SVG로 렌더 (인라인 또는 파일 저장). AI가 페이지를 시각적으로 분석할 때 |
+| `render_hwp_all_pages` | 전체 페이지 SVG 일괄 추출 |
 
 ### 쓰기 (`.hwpx` 지원)
 
@@ -119,6 +126,27 @@ AI: 이미지 2개를 추출했습니다 (extracted 2 images):
       - image_002.bmp
 ```
 
+### 페이지를 SVG로 렌더 (시각 분석용)
+
+```
+나: /path/to/document.hwpx 의 첫 페이지를 SVG로 보여줘
+
+AI: <svg xmlns="..." width="793" height="1122" viewBox="...">
+    <defs>...</defs>
+    ...
+    </svg>
+```
+
+또는 디스크로 저장:
+```
+나: /path/to/document.hwpx 모든 페이지 SVG로 저장해줘
+
+AI: 9/9 페이지 SVG 저장 (rendered 9/9 pages):
+    저장 위치: /path/to/document_pages
+      - page_001.svg
+      - page_002.svg ...
+```
+
 ---
 
 ## 한계
@@ -127,7 +155,7 @@ AI: 이미지 2개를 추출했습니다 (extracted 2 images):
 
 - **`.hwp` 쓰기 미지원** — 읽기는 `.hwp`/`.hwpx` 모두 됩니다. 쓰기는 `.hwpx`만. `.hwp` 입력에 대해 쓰기 도구를 호출하면 명확한 에러 메시지를 돌려줍니다. 한컴오피스에서 `.hwpx`로 다른 이름 저장 후 사용하시거나, v0.3 릴리스를 기다려주세요.
 - **크로스 포맷 저장 거부** — `.hwpx` 입력은 `.hwpx`로만 저장됩니다.
-- **머리말/꼬리말/각주/텍스트박스 미추출** — 본문 문단과 표만 읽습니다 (v0.3 예정).
+- **각주는 추출되지만 머리말/꼬리말/텍스트박스는 아직 미노출** — `read_hwp_text` 결과 끝에 `--- footnotes ---` 섹션으로 각주가 붙습니다. 머리말/꼬리말/텍스트박스 본문은 v0.3 예정.
 - **검색어가 두 텍스트 노드에 걸치면 매칭 안 됨** — 예: 한 `<hp:t>`가 "산업"으로 끝나고 다음이 "AI"로 시작하면 "산업AI"는 매칭 X. 한컴 hwpctl과 동일한 한계입니다.
 - **`create_hwpx_document`의 표는 v0.2에서 텍스트 행으로 평탄화** — 진짜 OWPML 표는 v0.3에서.
 
