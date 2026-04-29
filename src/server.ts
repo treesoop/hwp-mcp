@@ -12,6 +12,7 @@ import {
   fillHwpTemplate,
   createHwpxDocument,
 } from "./tools/write.js";
+import { renderHwpPage, renderHwpAllPages } from "./tools/render.js";
 
 const TOOLS = [
   {
@@ -97,6 +98,34 @@ const TOOLS = [
     },
   },
   {
+    name: "render_hwp_page",
+    description:
+      "Render a single page of an HWP/HWPX document as SVG. If output_path is omitted, the raw SVG string is returned inline (useful for direct LLM consumption). Args: file_path, page (0-based, default 0), output_path (optional).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        file_path: { type: "string" },
+        page: { type: "number" },
+        output_path: { type: "string" },
+      },
+      required: ["file_path"],
+    },
+  },
+  {
+    name: "render_hwp_all_pages",
+    description:
+      "Render every page of an HWP/HWPX as SVG files in a directory. Args: file_path, output_dir (default <file>_pages/), max_pages (optional limit).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        file_path: { type: "string" },
+        output_dir: { type: "string" },
+        max_pages: { type: "number" },
+      },
+      required: ["file_path"],
+    },
+  },
+  {
     name: "create_hwpx_document",
     description:
       "Create a new .hwpx file from a JSON content list of {type:'text',text} items. Tables (type:'table',headers,rows) are rendered as flat text rows in v0.2. Args: output_path (must end with .hwpx), content (JSON string of items).",
@@ -120,6 +149,8 @@ const HANDLERS: Record<string, (args: any) => Promise<string>> = {
   replace_hwp_text: replaceHwpText,
   fill_hwp_template: fillHwpTemplate,
   create_hwpx_document: createHwpxDocument,
+  render_hwp_page: renderHwpPage,
+  render_hwp_all_pages: renderHwpAllPages,
 };
 
 export function buildServer(): Server {

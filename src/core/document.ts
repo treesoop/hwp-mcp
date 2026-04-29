@@ -46,7 +46,71 @@ export function walkText(doc: HwpDocument): string {
       lines.push(doc.getTextRange(s, p, 0, len));
     }
   }
+  // Append footnote bodies, if any.
+  const fns = walkFootnotes(doc);
+  if (fns.length > 0) {
+    lines.push("");
+    lines.push("--- footnotes ---");
+    for (const fn of fns) {
+      lines.push(`[${fn.number}] ${fn.text}`);
+    }
+  }
   return lines.join("\n");
+}
+
+export interface FootnoteRef {
+  section: number;
+  paragraph: number;
+  controlIdx: number;
+  number: number;
+  text: string;
+}
+
+export function walkFootnotes(doc: HwpDocument): FootnoteRef[] {
+  const out: FootnoteRef[] = [];
+  const sectionCount = doc.getSectionCount();
+  for (let s = 0; s < sectionCount; s++) {
+    const paraCount = doc.getParagraphCount(s);
+    for (let p = 0; p < paraCount; p++) {
+      const n = controlCount(doc, s, p);
+      for (let ci = 0; ci < n; ci++) {
+        let infoJson: string;
+        try {
+          infoJson = doc.getFootnoteInfo(s, p, ci);
+        } catch {
+          continue;
+        }
+        if (!infoJson || infoJson === "null") continue;
+        let info: { ok?: boolean; number?: number; texts?: string[] };
+        try {
+          info = JSON.parse(infoJson);
+        } catch {
+          continue;
+        }
+        if (!info.ok) continue;
+        out.push({
+          section: s,
+          paragraph: p,
+          controlIdx: ci,
+          number: Number(info.number ?? 0),
+          text: (info.texts ?? []).join("\n").trim(),
+        });
+      }
+    }
+  }
+  return out;
+}
+
+export function getPageCount(doc: HwpDocument): number {
+  try {
+    return doc.pageCount();
+  } catch {
+    return 0;
+  }
+}
+
+export function renderPageSvg(doc: HwpDocument, pageNum: number): string {
+  return doc.renderPageSvg(pageNum);
 }
 
 export interface TableData {
