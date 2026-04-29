@@ -80,7 +80,62 @@ export function walkText(doc: HwpDocument): string {
     }
   }
 
+  // Equations
+  const eqs = walkEquations(doc);
+  if (eqs.length > 0) {
+    lines.push("");
+    lines.push("--- equations ---");
+    for (const eq of eqs) {
+      lines.push(`[eq ${eq.section}/${eq.paragraph}/${eq.controlIdx}] ${eq.script}`);
+    }
+  }
+
   return lines.join("\n");
+}
+
+export interface EquationRef {
+  section: number;
+  paragraph: number;
+  controlIdx: number;
+  script: string;
+  fontSize?: number;
+  fontName?: string;
+}
+
+export function walkEquations(doc: HwpDocument): EquationRef[] {
+  const out: EquationRef[] = [];
+  const sectionCount = doc.getSectionCount();
+  for (let s = 0; s < sectionCount; s++) {
+    const paraCount = doc.getParagraphCount(s);
+    for (let p = 0; p < paraCount; p++) {
+      const n = controlCount(doc, s, p);
+      for (let ci = 0; ci < n; ci++) {
+        let raw: string;
+        try {
+          raw = doc.getEquationProperties(s, p, ci, 0, 0);
+        } catch {
+          continue;
+        }
+        if (!raw || !raw.includes("script")) continue;
+        let parsed: { script?: string; fontSize?: number; fontName?: string };
+        try {
+          parsed = JSON.parse(raw);
+        } catch {
+          continue;
+        }
+        if (!parsed.script) continue;
+        out.push({
+          section: s,
+          paragraph: p,
+          controlIdx: ci,
+          script: parsed.script,
+          fontSize: parsed.fontSize,
+          fontName: parsed.fontName,
+        });
+      }
+    }
+  }
+  return out;
 }
 
 export interface HeaderFooterRef {
