@@ -13,6 +13,8 @@ import {
   createHwpxDocument,
 } from "./tools/write.js";
 import { renderHwpPage, renderHwpAllPages } from "./tools/render.js";
+import { replaceHwpImage, listHwpBinData } from "./tools/replace-image.js";
+import { getHwpInfo, listHwpFields } from "./tools/info.js";
 
 const TOOLS = [
   {
@@ -98,6 +100,51 @@ const TOOLS = [
     },
   },
   {
+    name: "get_hwp_info",
+    description:
+      "Get document metadata (version, page count, section count, fonts used, totals for tables/images/footnotes/equations/headers/footers). Args: file_path.",
+    inputSchema: {
+      type: "object",
+      properties: { file_path: { type: "string" } },
+      required: ["file_path"],
+    },
+  },
+  {
+    name: "list_hwp_fields",
+    description:
+      "List Hancom-style fields (`<hp:fldBegin>`/end pairs) in the document, with name and type when available. Useful before fill_hwp_template. Args: file_path.",
+    inputSchema: {
+      type: "object",
+      properties: { file_path: { type: "string" } },
+      required: ["file_path"],
+    },
+  },
+  {
+    name: "list_hwp_bindata",
+    description:
+      "List ZIP entries under BinData/ inside an .hwpx (image and binary attachments). Useful before replace_hwp_image. Args: file_path.",
+    inputSchema: {
+      type: "object",
+      properties: { file_path: { type: "string" } },
+      required: ["file_path"],
+    },
+  },
+  {
+    name: "replace_hwp_image",
+    description:
+      "Replace an embedded image inside an .hwpx by overwriting its BinData/ ZIP entry with new file contents. `target` accepts either basename ('image1.bmp') or full entry path ('BinData/image1.bmp'). Args: file_path, target, source_path, output_path (optional).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        file_path: { type: "string" },
+        target: { type: "string" },
+        source_path: { type: "string" },
+        output_path: { type: "string" },
+      },
+      required: ["file_path", "target", "source_path"],
+    },
+  },
+  {
     name: "render_hwp_page",
     description:
       "Render a single page of an HWP/HWPX document as SVG. If output_path is omitted, the raw SVG string is returned inline (useful for direct LLM consumption). Args: file_path, page (0-based, default 0), output_path (optional).",
@@ -151,6 +198,10 @@ const HANDLERS: Record<string, (args: any) => Promise<string>> = {
   create_hwpx_document: createHwpxDocument,
   render_hwp_page: renderHwpPage,
   render_hwp_all_pages: renderHwpAllPages,
+  get_hwp_info: getHwpInfo,
+  list_hwp_fields: listHwpFields,
+  list_hwp_bindata: listHwpBinData,
+  replace_hwp_image: replaceHwpImage,
 };
 
 export function buildServer(): Server {

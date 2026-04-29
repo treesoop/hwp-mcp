@@ -92,3 +92,62 @@ function xmlEscape(s: string): string {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
 }
+
+export interface ImageReplaceMap {
+  /** Either "image1.bmp" (basename) or "BinData/image1.bmp" (full entry path).
+   * Bytes from the new file fully replace the existing entry. */
+  [target: string]: string; // value = path to source file on disk
+}
+
+export interface ImageReplaceResult {
+  total: number;
+  replaced: { entry: string; from: string; bytes: number }[];
+  skipped: string[];
+}
+
+export async function replaceHwpxImages(
+  inputPath: string,
+  outputPath: string,
+  replacements: ImageReplaceMap
+): Promise<ImageReplaceResult> {
+  const bytes = await readFile(inputPath);
+  const zip = await JSZip.loadAsync(bytes);
+
+  const entryNames = Object.keys(zip.files).filter((n) => n.startsWith("BinData/"));
+  const result: ImageReplaceResult = { total: 0, replaced: [], skipped: [] };
+
+  for (const [target, sourcePath] of Object.entries(replacements)) {
+    const fullEntry = target.includes("/") ? target : `BinData/${target}`;
+    const match = entryNames.find(
+      (n) => n === fullEntry || n.endsWith("/" + target) || n === target
+    );
+    if (!match) {
+      result.skipped.push(target);
+      continue;
+    }
+    const newBytes = await readFile(sourcePath);
+    zip.file(match, newBytes);
+    result.replaced.push({ entry: match, from: sourcePath, bytes: newBytes.byteLength });
+    result.total += 1;
+  }
+
+  if (zip.files["mimetype"]) {
+    const mt = await zip.files["mimetype"].async("string");
+    zip.file("mimetype", mt, { compression: "STORE" });
+  }
+  const out = await zip.generateAsync({
+    type: "uint8array",
+    compression: "DEFLATE",
+    compressionOptions: { level: 6 },
+  });
+  await writeFile(outputPath, out);
+  return result;
+}
+
+export async function listHwpxBinDataEntries(inputPath: string): Promise<string[]> {
+  const bytes = await readFile(inputPath);
+  const zip = await JSZip.loadAsync(bytes);
+  return Object.keys(zip.files)
+    .filter((n) => n.startsWith("BinData/"))
+    .sort();
+}
