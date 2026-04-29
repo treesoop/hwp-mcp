@@ -14,6 +14,7 @@ import {
   insertHwpxImage,
   insertHwpxTable,
   mergeHwpxCellsHorizontal,
+  mergeHwpxCellsVertical,
   setHwpxCellText,
   setHwpxFieldValue,
   setHwpxParagraphText,
@@ -390,6 +391,31 @@ export async function mergeHwpCellsHorizontal(args: MergeCellsArgs): Promise<str
     return `셀 병합 완료 (merged ${r.merged} cells): 표 ${args.table_index}, 행 ${args.row}, 열 ${args.col_start}..${args.col_start + args.col_count - 1}\n저장 (saved): ${out}`;
   } catch (e) {
     return `셀 병합 오류 (merge error): ${(e as Error).message}`;
+  }
+}
+
+export interface MergeCellsVArgs {
+  file_path: string;
+  table_index: number;
+  col: number;
+  row_start: number;
+  row_count: number;
+  output_path?: string;
+}
+
+export async function mergeHwpCellsVertical(args: MergeCellsVArgs): Promise<string> {
+  const err = preflight(args.file_path);
+  if (err) return err;
+  const out = args.output_path && args.output_path.length > 0
+    ? args.output_path
+    : defaultOutput(args.file_path, "vmerged");
+  try {
+    const r = await mergeHwpxCellsVertical(
+      args.file_path, out, args.table_index, args.row_start, args.row_count, args.col
+    );
+    return `세로 셀 병합 (merged ${r.merged} cells): 표 ${args.table_index}, 열 ${args.col}, 행 ${args.row_start}..${args.row_start + args.row_count - 1}\n저장 (saved): ${out}`;
+  } catch (e) {
+    return `세로 셀 병합 오류 (vertical merge error): ${(e as Error).message}`;
   }
 }
 

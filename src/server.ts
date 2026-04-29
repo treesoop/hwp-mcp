@@ -27,6 +27,7 @@ import {
   applyHwpTextStyle,
   applyHwpParagraphStyle,
   mergeHwpCellsHorizontal,
+  mergeHwpCellsVertical,
   deleteHwpImage,
   setHwpFieldValue,
   setHwpParagraphText,
@@ -386,6 +387,23 @@ const TOOLS = [
     },
   },
   {
+    name: "merge_hwp_cells_vertical",
+    description:
+      "Merge vertical cells across rows in a single column by setting rowSpan on the first cell and removing absorbed cells in following rows. Args: file_path, table_index, col, row_start, row_count (>=2), output_path (optional).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        file_path: { type: "string" },
+        table_index: { type: "number" },
+        col: { type: "number" },
+        row_start: { type: "number" },
+        row_count: { type: "number" },
+        output_path: { type: "string" },
+      },
+      required: ["file_path", "table_index", "col", "row_start", "row_count"],
+    },
+  },
+  {
     name: "merge_hwp_cells_horizontal",
     description:
       "Merge horizontal cells in a row of a table by setting colSpan on the first cell and removing the absorbed cells. Args: file_path, table_index, row, col_start, col_count (>=2), output_path (optional).",
@@ -505,6 +523,7 @@ const HANDLERS: Record<string, (args: any) => Promise<string>> = {
   apply_hwp_text_style: applyHwpTextStyle,
   apply_hwp_paragraph_style: applyHwpParagraphStyle,
   merge_hwp_cells_horizontal: mergeHwpCellsHorizontal,
+  merge_hwp_cells_vertical: mergeHwpCellsVertical,
   set_hwp_paragraph_text: setHwpParagraphText,
   set_hwp_cell_text: setHwpCellText,
   set_hwp_field_value: setHwpFieldValue,

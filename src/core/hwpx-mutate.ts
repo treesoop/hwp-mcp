@@ -705,6 +705,64 @@ export async function insertHwpxTable(
 }
 
 /**
+ * Merge cells vertically (across rows) inside a single column.
+ * Sets rowSpan on the first cell and removes absorbed cells from each
+ * subsequent row. Assumes no prior merges.
+ */
+export async function mergeHwpxCellsVertical(
+  inputPath: string,
+  outputPath: string,
+  tableIndex: number,
+  rowStart: number,
+  rowCount: number,
+  colIndex: number
+): Promise<{ merged: number }> {
+  if (rowCount < 2) throw new Error("rowCount must be >= 2");
+  const { zip, sectionName, xml } = await loadSection(inputPath);
+  const tblRegex = /<hp:tbl [^>]*>[\s\S]*?<\/hp:tbl>/g;
+  const tables = [...xml.matchAll(tblRegex)];
+  if (tableIndex < 0 || tableIndex >= tables.length) {
+    throw new Error(`Table index out of range: ${tableIndex}`);
+  }
+  const tableXml = tables[tableIndex][0];
+  const trRegex = /<hp:tr(?:\s[^>]*)?>[\s\S]*?<\/hp:tr>/g;
+  const trs = [...tableXml.matchAll(trRegex)];
+  if (rowStart < 0 || rowStart + rowCount > trs.length) {
+    throw new Error(`Row merge range out of bounds: ${rowStart}..${rowStart + rowCount - 1}`);
+  }
+  let newTableXml = tableXml;
+  // First row: set rowSpan on the cell at colIndex
+  const firstTr = trs[rowStart][0];
+  const firstTcs = [...firstTr.matchAll(/<hp:tc(?:\s[^>]*)?>[\s\S]*?<\/hp:tc>/g)];
+  if (colIndex < 0 || colIndex >= firstTcs.length) {
+    throw new Error(`Col index out of bounds: ${colIndex}`);
+  }
+  const firstTc = firstTcs[colIndex][0];
+  let mergedFirst: string;
+  if (/rowSpan="\d+"/.test(firstTc)) {
+    mergedFirst = firstTc.replace(/rowSpan="\d+"/, `rowSpan="${rowCount}"`);
+  } else if (/^<hp:tc\s/.test(firstTc)) {
+    mergedFirst = firstTc.replace(/^<hp:tc /, `<hp:tc rowSpan="${rowCount}" `);
+  } else {
+    mergedFirst = firstTc.replace(/^<hp:tc>/, `<hp:tc rowSpan="${rowCount}">`);
+  }
+  const newFirstTr = firstTr.replace(firstTc, mergedFirst);
+  newTableXml = newTableXml.replace(firstTr, newFirstTr);
+  // Subsequent rows: remove the cell at colIndex
+  for (let i = 1; i < rowCount; i++) {
+    const trXml = trs[rowStart + i][0];
+    const tcs = [...trXml.matchAll(/<hp:tc(?:\s[^>]*)?>[\s\S]*?<\/hp:tc>/g)];
+    if (colIndex < tcs.length) {
+      const newTr = trXml.replace(tcs[colIndex][0], "");
+      newTableXml = newTableXml.replace(trXml, newTr);
+    }
+  }
+  const newXml = xml.replace(tableXml, newTableXml);
+  await writeSection(zip, sectionName, newXml, outputPath);
+  return { merged: rowCount };
+}
+
+/**
  * Merge cells horizontally inside a row by setting colSpan on the first cell
  * and removing the absorbed cells. Best-effort: assumes the table has no prior
  * merges in that row.
