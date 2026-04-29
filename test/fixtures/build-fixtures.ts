@@ -5,20 +5,55 @@ import { initRhwp } from "../../src/core/wasm-init.js";
 import { HwpDocument } from "@rhwp/core";
 
 const FIX_DIR = dirname(fileURLToPath(import.meta.url));
+mkdirSync(FIX_DIR, { recursive: true });
 
-async function buildSimpleHwpx() {
-  await initRhwp();
+// 1x1 red PNG (67 bytes), used for image fixture.
+const PNG_BYTES = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==",
+  "base64"
+);
+
+await initRhwp();
+
+function build(label: string, configure: (doc: HwpDocument) => void, exportFn: "hwp" | "hwpx") {
   const doc = HwpDocument.createEmpty();
-  // createEmpty produces a stub with 0 sections; load the embedded blank
-  // template (saved/blank2010.hwp) so we have a usable section/paragraph.
   doc.createBlankDocument();
-  doc.insertText(0, 0, 0, "안녕하세요 hwp-mcp.");
-  const bytes = doc.exportHwpx();
+  configure(doc);
+  const bytes = exportFn === "hwp" ? doc.exportHwp() : doc.exportHwpx();
   doc.free();
-  const out = resolve(FIX_DIR, "simple.hwpx");
-  mkdirSync(FIX_DIR, { recursive: true });
+  const out = resolve(FIX_DIR, label);
   writeFileSync(out, bytes);
-  console.log("wrote", out, bytes.byteLength, "bytes");
+  console.log(`wrote ${out} ${bytes.byteLength}B`);
 }
 
-await buildSimpleHwpx();
+// simple.hwp — text + 2x2 table + 1 image
+build("simple.hwp", (doc) => {
+  doc.insertText(0, 0, 0, "안녕하세요 hwp-mcp.");
+  const ct = JSON.parse(doc.createTable(0, 0, doc.getParagraphLength(0, 0), 2, 2));
+  const cells: [number, string][] = [
+    [0, "이름"], [1, "회사"],
+    [2, "남대현"], [3, "포텐랩"],
+  ];
+  for (const [idx, txt] of cells) {
+    doc.insertTextInCell(0, ct.paraIdx, ct.controlIdx, idx, 0, 0, txt);
+  }
+  const lastP = doc.getParagraphCount(0) - 1;
+  doc.insertPicture(
+    0, lastP, doc.getParagraphLength(0, lastP),
+    new Uint8Array(PNG_BYTES),
+    100, 100, 1, 1, "png", "sample"
+  );
+}, "hwp");
+
+// empty.hwp — minimal document, no body text, no table, no image
+build("empty.hwp", (_doc) => { /* createBlankDocument is enough */ }, "hwp");
+
+// template.hwp — body text with {{placeholders}} only
+build("template.hwp", (doc) => {
+  doc.insertText(0, 0, 0, "안녕하세요 {{name}}님, {{company}}에서 보낸 메시지입니다.");
+}, "hwp");
+
+// text_only.hwpx — text-only .hwpx (used to verify .hwpx round-trip and cross-format-reject)
+build("text_only.hwpx", (doc) => {
+  doc.insertText(0, 0, 0, "hwpx 텍스트.");
+}, "hwpx");

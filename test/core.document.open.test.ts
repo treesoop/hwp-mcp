@@ -3,7 +3,7 @@ import { openDocument, closeDocument } from "../src/core/document.js";
 
 describe("openDocument", () => {
   it("opens an .hwpx file and reports its section count", async () => {
-    const doc = await openDocument("test/fixtures/simple.hwpx");
+    const doc = await openDocument("test/fixtures/simple.hwp");
     expect(doc.getSectionCount()).toBeGreaterThanOrEqual(1);
     closeDocument(doc);
   });
