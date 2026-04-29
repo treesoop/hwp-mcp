@@ -62,6 +62,8 @@ interface TableDims {
   colCount?: number;
   row_count?: number;
   col_count?: number;
+  cellCount?: number;
+  cell_count?: number;
 }
 
 function controlCount(doc: HwpDocument, s: number, p: number): number {
@@ -83,11 +85,29 @@ function readCellText(
   ci: number,
   cellIdx: number
 ): string {
-  const paraCount = doc.getCellParagraphCount(s, p, ci, cellIdx);
+  let paraCount: number;
+  try {
+    paraCount = doc.getCellParagraphCount(s, p, ci, cellIdx);
+  } catch {
+    return "";
+  }
   const lines: string[] = [];
   for (let cp = 0; cp < paraCount; cp++) {
-    const len = doc.getCellParagraphLength(s, p, ci, cellIdx, cp);
-    lines.push(len === 0 ? "" : doc.getTextInCell(s, p, ci, cellIdx, cp, 0, len));
+    let len: number;
+    try {
+      len = doc.getCellParagraphLength(s, p, ci, cellIdx, cp);
+    } catch {
+      continue;
+    }
+    if (len === 0) {
+      lines.push("");
+      continue;
+    }
+    try {
+      lines.push(doc.getTextInCell(s, p, ci, cellIdx, cp, 0, len));
+    } catch {
+      lines.push("");
+    }
   }
   return lines.join("\n").trim();
 }
@@ -115,14 +135,24 @@ export function walkTables(doc: HwpDocument): TableData[] {
         }
         const rows = Number(dims.rowCount ?? dims.rows ?? dims.row_count ?? 0);
         const cols = Number(dims.colCount ?? dims.cols ?? dims.col_count ?? 0);
+        const cellCount = Number(dims.cellCount ?? dims.cell_count ?? rows * cols);
         if (rows === 0 || cols === 0) continue;
-        const cells: string[][] = [];
-        for (let r = 0; r < rows; r++) {
-          const row: string[] = [];
-          for (let c = 0; c < cols; c++) {
-            row.push(readCellText(doc, s, p, ci, r * cols + c));
+        // Tables with merged cells report cellCount < rows*cols. Walk by
+        // cellCount instead of grid; place by getCellInfo (row, col, span).
+        const cells: string[][] = Array.from({ length: rows }, () => Array(cols).fill(""));
+        for (let cellIdx = 0; cellIdx < cellCount; cellIdx++) {
+          let row = 0,
+            col = 0;
+          try {
+            const info = JSON.parse(doc.getCellInfo(s, p, ci, cellIdx));
+            row = Number(info.row ?? info.r ?? 0);
+            col = Number(info.col ?? info.c ?? 0);
+          } catch {
+            row = Math.floor(cellIdx / cols);
+            col = cellIdx % cols;
           }
-          cells.push(row);
+          if (row >= rows || col >= cols) continue;
+          cells[row][col] = readCellText(doc, s, p, ci, cellIdx);
         }
         out.push({ rows, cols, cells });
       }
