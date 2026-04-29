@@ -35,6 +35,19 @@ export function closeDocument(doc: HwpDocument): void {
 export function walkText(doc: HwpDocument): string {
   const lines: string[] = [];
   const sectionCount = doc.getSectionCount();
+
+  // Headers (per section, deduped)
+  const hfs = walkHeadersFooters(doc);
+  const headers = hfs.filter((h) => h.kind === "header");
+  if (headers.length > 0) {
+    lines.push("--- headers ---");
+    for (const h of headers) {
+      lines.push(`[section ${h.section} ${h.label}] ${h.text}`);
+    }
+    lines.push("");
+  }
+
+  // Body
   for (let s = 0; s < sectionCount; s++) {
     const paraCount = doc.getParagraphCount(s);
     for (let p = 0; p < paraCount; p++) {
@@ -46,7 +59,18 @@ export function walkText(doc: HwpDocument): string {
       lines.push(doc.getTextRange(s, p, 0, len));
     }
   }
-  // Append footnote bodies, if any.
+
+  // Footers
+  const footers = hfs.filter((h) => h.kind === "footer");
+  if (footers.length > 0) {
+    lines.push("");
+    lines.push("--- footers ---");
+    for (const f of footers) {
+      lines.push(`[section ${f.section} ${f.label}] ${f.text}`);
+    }
+  }
+
+  // Footnotes
   const fns = walkFootnotes(doc);
   if (fns.length > 0) {
     lines.push("");
@@ -55,7 +79,67 @@ export function walkText(doc: HwpDocument): string {
       lines.push(`[${fn.number}] ${fn.text}`);
     }
   }
+
   return lines.join("\n");
+}
+
+export interface HeaderFooterRef {
+  section: number;
+  kind: "header" | "footer";
+  applyTo: number;
+  label: string;
+  text: string;
+}
+
+export function walkHeadersFooters(doc: HwpDocument): HeaderFooterRef[] {
+  const out: HeaderFooterRef[] = [];
+  const seen = new Set<string>();
+  const sectionCount = doc.getSectionCount();
+  for (let s = 0; s < sectionCount; s++) {
+    for (const isHeader of [true, false]) {
+      let listJson: string;
+      try {
+        listJson = doc.getHeaderFooterList(s, isHeader, 0);
+      } catch {
+        continue;
+      }
+      let list: { items?: Array<{ sectionIdx?: number; isHeader?: boolean; applyTo?: number; label?: string }> };
+      try {
+        list = JSON.parse(listJson);
+      } catch {
+        continue;
+      }
+      for (const it of list.items ?? []) {
+        const itSection = Number(it.sectionIdx ?? s);
+        const itIsHeader = Boolean(it.isHeader);
+        const applyTo = Number(it.applyTo ?? 0);
+        const key = `${itSection}|${itIsHeader}|${applyTo}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        let infoJson: string;
+        try {
+          infoJson = doc.getHeaderFooter(itSection, itIsHeader, applyTo);
+        } catch {
+          continue;
+        }
+        let info: { exists?: boolean; text?: string; label?: string };
+        try {
+          info = JSON.parse(infoJson);
+        } catch {
+          continue;
+        }
+        if (!info.exists) continue;
+        out.push({
+          section: itSection,
+          kind: itIsHeader ? "header" : "footer",
+          applyTo,
+          label: info.label ?? it.label ?? "",
+          text: (info.text ?? "").trim(),
+        });
+      }
+    }
+  }
+  return out;
 }
 
 export interface FootnoteRef {

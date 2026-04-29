@@ -57,3 +57,12 @@ build("template.hwp", (doc) => {
 build("text_only.hwpx", (doc) => {
   doc.insertText(0, 0, 0, "hwpx 텍스트.");
 }, "hwpx");
+
+// with_hf.hwp — body + header + footer (round-trips via .hwp)
+build("with_hf.hwp", (doc) => {
+  doc.insertText(0, 0, 0, "본문 내용");
+  doc.createHeaderFooter(0, true, 0);
+  doc.createHeaderFooter(0, false, 0);
+  doc.insertTextInHeaderFooter(0, true, 0, 0, 0, "회사 머리말 ABC");
+  doc.insertTextInHeaderFooter(0, false, 0, 0, 0, "꼬리말 XYZ");
+}, "hwp");
