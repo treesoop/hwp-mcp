@@ -6,12 +6,35 @@
   "license": "MIT",
   "author": "Treesoop <official@treesoop.com>",
   "homepage": "https://github.com/treesoop/hwp-mcp",
-  "repository": { "type": "git", "url": "https://github.com/treesoop/hwp-mcp" },
-  "keywords": ["hwp", "hwpx", "hangul", "한글", "mcp", "model-context-protocol", "claude", "cursor", "korean", "hancom", "llm"],
-  "bin": { "hwp-mcp": "dist/server.js" },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/treesoop/hwp-mcp"
+  },
+  "keywords": [
+    "hwp",
+    "hwpx",
+    "hangul",
+    "한글",
+    "mcp",
+    "model-context-protocol",
+    "claude",
+    "cursor",
+    "korean",
+    "hancom",
+    "llm"
+  ],
+  "bin": {
+    "hwp-mcp": "dist/server.js"
+  },
   "main": "dist/server.js",
-  "files": ["dist", "README.md", "LICENSE"],
-  "engines": { "node": ">=20" },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "start": "node dist/server.js",
@@ -23,7 +46,8 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
-    "@rhwp/core": "0.7.x"
+    "@rhwp/core": "0.7.x",
+    "jszip": "^3.10.1"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
