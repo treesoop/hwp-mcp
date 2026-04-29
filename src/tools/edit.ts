@@ -5,15 +5,19 @@ import {
   appendHwpxParagraph,
   appendHwpxTableColumn,
   appendHwpxTableRow,
+  applyHwpxParaStyle,
   applyHwpxTextStyle,
   deleteHwpxImage,
   deleteHwpxParagraph,
   deleteHwpxTableColumn,
   deleteHwpxTableRow,
   insertHwpxImage,
+  insertHwpxTable,
+  mergeHwpxCellsHorizontal,
   setHwpxCellText,
   setHwpxFieldValue,
   setHwpxParagraphText,
+  type ParaStyle,
   type TextStyle,
 } from "../core/hwpx-mutate.js";
 
@@ -302,6 +306,90 @@ export async function applyHwpTextStyle(args: ApplyStyleArgs): Promise<string> {
     return `텍스트 서식 적용 (style applied): '${args.target_text}' → charPrId=${r.charPrId}\n저장 (saved): ${out}`;
   } catch (e) {
     return `서식 적용 오류 (style error): ${(e as Error).message}`;
+  }
+}
+
+export interface ApplyParaStyleArgs {
+  file_path: string;
+  paragraph_index: number;
+  align?: string;
+  indent?: number;
+  line_spacing?: number;
+  output_path?: string;
+}
+
+export async function applyHwpParagraphStyle(args: ApplyParaStyleArgs): Promise<string> {
+  const err = preflight(args.file_path);
+  if (err) return err;
+  const out = args.output_path && args.output_path.length > 0
+    ? args.output_path
+    : defaultOutput(args.file_path, "para-styled");
+  const style: ParaStyle = {};
+  if (args.align) style.align = args.align;
+  if (args.indent !== undefined) style.indent = args.indent;
+  if (args.line_spacing !== undefined) style.lineSpacing = args.line_spacing;
+  try {
+    const r = await applyHwpxParaStyle(args.file_path, out, args.paragraph_index, style);
+    if (r.retargeted === 0) return `문단 인덱스 범위 초과 (paragraph index out of range): ${args.paragraph_index}`;
+    return `문단 ${args.paragraph_index} 서식 적용 (paraPrId=${r.paraPrId})\n저장 (saved): ${out}`;
+  } catch (e) {
+    return `문단 서식 오류 (para style error): ${(e as Error).message}`;
+  }
+}
+
+export interface InsertTableArgs {
+  file_path: string;
+  headers: string;
+  rows: string;
+  output_path?: string;
+}
+
+export async function insertHwpTable(args: InsertTableArgs): Promise<string> {
+  const err = preflight(args.file_path);
+  if (err) return err;
+  let headers: string[];
+  let rows: string[][];
+  try {
+    headers = JSON.parse(args.headers);
+    rows = JSON.parse(args.rows);
+    if (!Array.isArray(headers) || !Array.isArray(rows))
+      throw new Error("headers / rows must be JSON arrays");
+  } catch (e) {
+    return `headers/rows JSON 파싱 오류: ${(e as Error).message}`;
+  }
+  const out = args.output_path && args.output_path.length > 0
+    ? args.output_path
+    : defaultOutput(args.file_path, "table-added");
+  try {
+    const r = await insertHwpxTable(args.file_path, out, headers, rows);
+    return `표 삽입 완료 (table inserted): ${r.rows}행 x ${r.cols}열\n저장 (saved): ${out}`;
+  } catch (e) {
+    return `표 삽입 오류 (insert table error): ${(e as Error).message}`;
+  }
+}
+
+export interface MergeCellsArgs {
+  file_path: string;
+  table_index: number;
+  row: number;
+  col_start: number;
+  col_count: number;
+  output_path?: string;
+}
+
+export async function mergeHwpCellsHorizontal(args: MergeCellsArgs): Promise<string> {
+  const err = preflight(args.file_path);
+  if (err) return err;
+  const out = args.output_path && args.output_path.length > 0
+    ? args.output_path
+    : defaultOutput(args.file_path, "merged");
+  try {
+    const r = await mergeHwpxCellsHorizontal(
+      args.file_path, out, args.table_index, args.row, args.col_start, args.col_count
+    );
+    return `셀 병합 완료 (merged ${r.merged} cells): 표 ${args.table_index}, 행 ${args.row}, 열 ${args.col_start}..${args.col_start + args.col_count - 1}\n저장 (saved): ${out}`;
+  } catch (e) {
+    return `셀 병합 오류 (merge error): ${(e as Error).message}`;
   }
 }
 

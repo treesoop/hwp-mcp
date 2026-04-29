@@ -23,7 +23,10 @@ import {
   appendHwpTableColumn,
   deleteHwpTableColumn,
   insertHwpImage,
+  insertHwpTable,
   applyHwpTextStyle,
+  applyHwpParagraphStyle,
+  mergeHwpCellsHorizontal,
   deleteHwpImage,
   setHwpFieldValue,
   setHwpParagraphText,
@@ -351,6 +354,55 @@ const TOOLS = [
     },
   },
   {
+    name: "apply_hwp_paragraph_style",
+    description:
+      "Apply paragraph formatting (alignment·indent·line_spacing) to the Nth paragraph in an .hwpx. Adds a new paraPr to header.xml and retargets the paragraph's paraPrIDRef. align: LEFT|CENTER|RIGHT|JUSTIFY|DISTRIBUTE. Args: file_path, paragraph_index, align/indent/line_spacing (any subset), output_path (optional).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        file_path: { type: "string" },
+        paragraph_index: { type: "number" },
+        align: { type: "string" },
+        indent: { type: "number" },
+        line_spacing: { type: "number" },
+        output_path: { type: "string" },
+      },
+      required: ["file_path", "paragraph_index"],
+    },
+  },
+  {
+    name: "insert_hwp_table",
+    description:
+      "Insert a real OWPML table at the end of an .hwpx body (proper <hp:tbl>/<hp:tr>/<hp:tc>). headers and rows are both JSON string arrays — `headers` is a single-row array of strings, `rows` is an array of row arrays. Args: file_path, headers, rows, output_path (optional).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        file_path: { type: "string" },
+        headers: { type: "string" },
+        rows: { type: "string" },
+        output_path: { type: "string" },
+      },
+      required: ["file_path", "headers", "rows"],
+    },
+  },
+  {
+    name: "merge_hwp_cells_horizontal",
+    description:
+      "Merge horizontal cells in a row of a table by setting colSpan on the first cell and removing the absorbed cells. Args: file_path, table_index, row, col_start, col_count (>=2), output_path (optional).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        file_path: { type: "string" },
+        table_index: { type: "number" },
+        row: { type: "number" },
+        col_start: { type: "number" },
+        col_count: { type: "number" },
+        output_path: { type: "string" },
+      },
+      required: ["file_path", "table_index", "row", "col_start", "col_count"],
+    },
+  },
+  {
     name: "apply_hwp_text_style",
     description:
       "Apply formatting (color/bold/italic/underline/font_size) to the first run that contains target_text. Adds a new charPr to header.xml and retargets the matching <hp:run>. Color is a 6-digit hex (e.g. 'FF0000'). Args: file_path, target_text, color/bold/italic/underline/font_size (any subset), output_path (optional).",
@@ -449,7 +501,10 @@ const HANDLERS: Record<string, (args: any) => Promise<string>> = {
   append_hwp_table_column: appendHwpTableColumn,
   delete_hwp_table_column: deleteHwpTableColumn,
   insert_hwp_image: insertHwpImage,
+  insert_hwp_table: insertHwpTable,
   apply_hwp_text_style: applyHwpTextStyle,
+  apply_hwp_paragraph_style: applyHwpParagraphStyle,
+  merge_hwp_cells_horizontal: mergeHwpCellsHorizontal,
   set_hwp_paragraph_text: setHwpParagraphText,
   set_hwp_cell_text: setHwpCellText,
   set_hwp_field_value: setHwpFieldValue,

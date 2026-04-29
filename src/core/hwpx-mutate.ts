@@ -27,8 +27,10 @@ export async function mutateHwpxText(
   const counts: Record<string, number> = {};
   let total = 0;
 
+  // Mutate every XML carrying body content: section*.xml, header.xml (HF blocks),
+  // and master pages. mimetype/content.hpf are excluded.
   const sectionFiles = Object.keys(zip.files).filter((n) =>
-    /^Contents\/section\d+\.xml$/i.test(n)
+    /^Contents\/(section\d+|header)\.xml$/i.test(n)
   );
 
   for (const fname of sectionFiles) {
@@ -563,6 +565,194 @@ export interface TextStyle {
   italic?: boolean;
   underline?: boolean;
   fontSize?: number;       // HWP units; 1300 ≈ 13pt
+}
+
+export interface ParaStyle {
+  /** "LEFT" | "CENTER" | "RIGHT" | "JUSTIFY" | "DISTRIBUTE" */
+  align?: string;
+  /** First-line indent in HWP units (positive = indent, negative = hanging) */
+  indent?: number;
+  /** Line spacing percentage (e.g. 160 means 160%) */
+  lineSpacing?: number;
+}
+
+export async function applyHwpxParaStyle(
+  inputPath: string,
+  outputPath: string,
+  paragraphIndex: number,
+  style: ParaStyle
+): Promise<{ retargeted: number; paraPrId: string }> {
+  const bytes = await readFile(inputPath);
+  const zip = await JSZip.loadAsync(bytes);
+  const headerName = Object.keys(zip.files).find((n) => /^Contents\/header\.xml$/i.test(n));
+  if (!headerName) throw new Error("Contents/header.xml missing — cannot edit paraPr");
+  let header = await zip.files[headerName].async("string");
+
+  const paraPrRegex = /<hh:paraPr [^>]*>[\s\S]*?<\/hh:paraPr>|<hh:paraPr [^/]*\/>/g;
+  const all = [...header.matchAll(paraPrRegex)];
+  if (all.length === 0) throw new Error("No <hh:paraPr> found in header.xml");
+  const baseParaPr = all[0][0];
+  const baseId = baseParaPr.match(/id="(\d+)"/)?.[1] ?? "0";
+  const maxId = Math.max(...all.map((m) => Number(m[0].match(/id="(\d+)"/)?.[1] ?? 0)));
+  const newId = String(maxId + 1);
+
+  // Mutate
+  let mutated = baseParaPr.replace(/id="\d+"/, `id="${newId}"`);
+  if (style.align) {
+    if (/<hh:align [^>]*\/>/.test(mutated)) {
+      mutated = mutated.replace(
+        /<hh:align [^>]*\/>/,
+        `<hh:align horizontal="${style.align}" vertical="BASELINE"/>`
+      );
+    } else if (/horizontal="[^"]*"/.test(mutated)) {
+      mutated = mutated.replace(/horizontal="[^"]*"/, `horizontal="${style.align}"`);
+    } else {
+      // Inject as attribute on the paraPr
+      mutated = mutated.replace(
+        /<hh:paraPr /,
+        `<hh:paraPr align="${style.align}" `
+      );
+    }
+  }
+  if (style.indent !== undefined) {
+    if (/indent="[^"]*"/.test(mutated)) {
+      mutated = mutated.replace(/indent="[^"]*"/, `indent="${style.indent}"`);
+    } else {
+      mutated = mutated.replace(/<hh:paraPr /, `<hh:paraPr indent="${style.indent}" `);
+    }
+  }
+
+  const newHeader = header.replace(baseParaPr, baseParaPr + mutated);
+  zip.file(headerName, newHeader);
+
+  // Retarget the Nth paragraph
+  const sectionName = Object.keys(zip.files).find((n) => /^Contents\/section\d+\.xml$/i.test(n))!;
+  const xml = await zip.files[sectionName].async("string");
+  const matches = [...xml.matchAll(PARA_REGEX)];
+  if (paragraphIndex < 0 || paragraphIndex >= matches.length) {
+    return { retargeted: 0, paraPrId: newId };
+  }
+  const target = matches[paragraphIndex][0];
+  const retargeted = target.replace(/paraPrIDRef="\d+"/, `paraPrIDRef="${newId}"`);
+  const newXml = xml.replace(target, retargeted);
+  zip.file(sectionName, newXml);
+
+  if (zip.files["mimetype"]) {
+    const mt = await zip.files["mimetype"].async("string");
+    zip.file("mimetype", mt, { compression: "STORE" });
+  }
+  const out = await zip.generateAsync({
+    type: "uint8array",
+    compression: "DEFLATE",
+    compressionOptions: { level: 6 },
+  });
+  await writeFile(outputPath, out);
+  return { retargeted: 1, paraPrId: newId };
+}
+
+/**
+ * Insert a real OWPML table into the document by appending a paragraph that
+ * contains a <hp:tbl> with the given headers and body rows. Each cell wraps
+ * the text in a single <hp:p>/<hp:run>.
+ */
+export async function insertHwpxTable(
+  inputPath: string,
+  outputPath: string,
+  headers: string[],
+  rows: string[][]
+): Promise<{ inserted: number; rows: number; cols: number }> {
+  const { zip, sectionName, xml } = await loadSection(inputPath);
+  const matches = [...xml.matchAll(PARA_REGEX)];
+  const last = matches[matches.length - 1]?.[0] ?? "";
+  const charPrId = last.match(/charPrIDRef="(\d+)"/)?.[1] ?? "0";
+  const paraAttrs = (last.match(/^<hp:p ([^>]*)>/)?.[1] ?? "").replace(/\s*id="\d+"\s*/, ` id="${freshId()}" `);
+
+  const cols = headers.length;
+  const totalRows = rows.length + 1;
+  const allRows: string[][] = [headers, ...rows];
+
+  function cellXml(text: string): string {
+    return (
+      "<hp:tc>" +
+      `<hp:subList id="${freshId()}" textDirection="HORIZONTAL" lineWrap="BREAK" vertAlign="TOP" linkListIDRef="0" linkListNextIDRef="0" textWidth="0" textHeight="0" hasTextRef="0" hasNumRef="0">` +
+      `<hp:p id="${freshId()}" paraPrIDRef="0" styleIDRef="0" pageBreak="0" columnBreak="0" merged="0">` +
+      `<hp:run charPrIDRef="${charPrId}"><hp:t>${xmlEscape(text)}</hp:t></hp:run>` +
+      "</hp:p>" +
+      "</hp:subList>" +
+      "</hp:tc>"
+    );
+  }
+  function rowXml(cells: string[]): string {
+    return "<hp:tr>" + cells.map((c) => cellXml(c ?? "")).join("") + "</hp:tr>";
+  }
+
+  const tblXml =
+    `<hp:tbl id="${freshId()}" zOrder="0" numberingType="TABLE" textWrap="TOP_AND_BOTTOM" textFlow="BOTH_SIDES" lock="0" dropcapstyle="None" pageBreak="CELL" repeatHeader="1" rowCnt="${totalRows}" colCnt="${cols}" cellSpacing="0" borderFillIDRef="2" noAdjust="0">` +
+    `<hp:sz width="${40000}" widthRelTo="ABSOLUTE" height="${5000 * totalRows}" heightRelTo="ABSOLUTE" protect="0"/>` +
+    `<hp:pos treatAsChar="1" affectLSpacing="0" flowWithText="1" allowOverlap="0" holdAnchorAndSO="0" vertRelTo="PARA" horzRelTo="PARA" vertAlign="TOP" horzAlign="LEFT" vertOffset="0" horzOffset="0"/>` +
+    `<hp:outMargin left="0" right="0" top="0" bottom="0"/>` +
+    `<hp:inMargin left="510" right="510" top="141" bottom="141"/>` +
+    allRows.map(rowXml).join("") +
+    "</hp:tbl>";
+
+  const newPara =
+    `<hp:p ${paraAttrs}>` +
+    `<hp:run charPrIDRef="${charPrId}">${tblXml}</hp:run>` +
+    "</hp:p>";
+  const newXml = xml.replace(/<\/hs:sec>\s*$/, newPara + "</hs:sec>");
+  await writeSection(zip, sectionName, newXml, outputPath);
+  return { inserted: 1, rows: totalRows, cols };
+}
+
+/**
+ * Merge cells horizontally inside a row by setting colSpan on the first cell
+ * and removing the absorbed cells. Best-effort: assumes the table has no prior
+ * merges in that row.
+ */
+export async function mergeHwpxCellsHorizontal(
+  inputPath: string,
+  outputPath: string,
+  tableIndex: number,
+  rowIndex: number,
+  colStart: number,
+  colCount: number
+): Promise<{ merged: number }> {
+  if (colCount < 2) throw new Error("colCount must be >= 2");
+  const { zip, sectionName, xml } = await loadSection(inputPath);
+  const tblRegex = /<hp:tbl [^>]*>[\s\S]*?<\/hp:tbl>/g;
+  const tables = [...xml.matchAll(tblRegex)];
+  if (tableIndex < 0 || tableIndex >= tables.length) {
+    throw new Error(`Table index out of range: ${tableIndex}`);
+  }
+  const tableXml = tables[tableIndex][0];
+  const trRegex = /<hp:tr(?:\s[^>]*)?>[\s\S]*?<\/hp:tr>/g;
+  const trs = [...tableXml.matchAll(trRegex)];
+  if (rowIndex < 0 || rowIndex >= trs.length) {
+    throw new Error(`Row index out of range: ${rowIndex}`);
+  }
+  const trXml = trs[rowIndex][0];
+  const tcMatches = [...trXml.matchAll(/<hp:tc(?:\s[^>]*)?>[\s\S]*?<\/hp:tc>/g)];
+  if (colStart < 0 || colStart + colCount > tcMatches.length) {
+    throw new Error(`Column merge range out of bounds: ${colStart}..${colStart + colCount - 1}`);
+  }
+  const firstTc = tcMatches[colStart][0];
+  // Add or update colSpan on the first <hp:tc>
+  let mergedFirst: string;
+  if (/colSpan="\d+"/.test(firstTc)) {
+    mergedFirst = firstTc.replace(/colSpan="\d+"/, `colSpan="${colCount}"`);
+  } else if (/^<hp:tc\s/.test(firstTc)) {
+    mergedFirst = firstTc.replace(/^<hp:tc /, `<hp:tc colSpan="${colCount}" `);
+  } else {
+    mergedFirst = firstTc.replace(/^<hp:tc>/, `<hp:tc colSpan="${colCount}">`);
+  }
+  let newTrXml = trXml.replace(firstTc, mergedFirst);
+  for (let i = 1; i < colCount; i++) {
+    newTrXml = newTrXml.replace(tcMatches[colStart + i][0], "");
+  }
+  const newTableXml = tableXml.replace(trXml, newTrXml);
+  const newXml = xml.replace(tableXml, newTableXml);
+  await writeSection(zip, sectionName, newXml, outputPath);
+  return { merged: colCount };
 }
 
 export async function applyHwpxTextStyle(

@@ -131,6 +131,80 @@ describe("insertHwpImage", () => {
   });
 });
 
+describe("applyHwpParagraphStyle", () => {
+  it("creates a new paraPr and retargets the Nth paragraph", async () => {
+    const { applyHwpParagraphStyle } = await import("../src/tools/edit.js");
+    // The fixture's section has paraPr id=0 in header.xml? It doesn't, so we
+    // skip the strict header check by injecting one.
+    const zip = await JSZip.loadAsync(readFileSync(tmpHwpx));
+    const header = await zip.file("Contents/header.xml")!.async("string");
+    if (!header.includes("<hh:paraPr")) {
+      const augmented = header.replace(
+        /<\/hh:head>/,
+        '<hh:paraPrList><hh:paraPr id="0" align="LEFT" indent="0"/></hh:paraPrList></hh:head>'
+      );
+      zip.file("Contents/header.xml", augmented);
+      const out = await zip.generateAsync({ type: "uint8array", compression: "DEFLATE" });
+      writeFileSync(tmpHwpx, out);
+    }
+    const r = await applyHwpParagraphStyle({
+      file_path: tmpHwpx,
+      paragraph_index: 0,
+      align: "CENTER",
+      output_path: tmpOut,
+    });
+    expect(r).toMatch(/적용|applied/);
+    const z2 = await JSZip.loadAsync(readFileSync(tmpOut));
+    const h2 = await z2.file("Contents/header.xml")!.async("string");
+    expect(h2).toContain('id="1"');
+    const sec = await z2.file("Contents/section0.xml")!.async("string");
+    expect(sec).toMatch(/paraPrIDRef="1"/);
+  });
+});
+
+describe("insertHwpTable", () => {
+  it("inserts a real OWPML table with header + 2 body rows", async () => {
+    const { insertHwpTable } = await import("../src/tools/edit.js");
+    const r = await insertHwpTable({
+      file_path: tmpHwpx,
+      headers: JSON.stringify(["이름", "역할"]),
+      rows: JSON.stringify([["김철수", "CTO"], ["이영희", "PM"]]),
+      output_path: tmpOut,
+    });
+    expect(r).toMatch(/삽입|inserted/);
+    const z = await JSZip.loadAsync(readFileSync(tmpOut));
+    const sec = await z.file("Contents/section0.xml")!.async("string");
+    // We expect 2 tables now — the existing one + the new one
+    const tblCount = (sec.match(/<hp:tbl /g) ?? []).length;
+    expect(tblCount).toBeGreaterThanOrEqual(2);
+    expect(sec).toContain("이름");
+    expect(sec).toContain("김철수");
+    expect(sec).toContain("이영희");
+  });
+});
+
+describe("mergeHwpCellsHorizontal", () => {
+  it("sets colSpan on the first cell and removes absorbed cells", async () => {
+    const { mergeHwpCellsHorizontal } = await import("../src/tools/edit.js");
+    const r = await mergeHwpCellsHorizontal({
+      file_path: tmpHwpx,
+      table_index: 0,
+      row: 0,
+      col_start: 0,
+      col_count: 2,
+      output_path: tmpOut,
+    });
+    expect(r).toMatch(/병합 완료|merged/);
+    const z = await JSZip.loadAsync(readFileSync(tmpOut));
+    const sec = await z.file("Contents/section0.xml")!.async("string");
+    expect(sec).toMatch(/colSpan="2"/);
+    // Row 0 originally had 2 <hp:tc>; after merge should have 1
+    const firstTr = sec.match(/<hp:tr>[\s\S]*?<\/hp:tr>/)?.[0] ?? "";
+    const tcInFirst = (firstTr.match(/<hp:tc/g) ?? []).length;
+    expect(tcInFirst).toBe(1);
+  });
+});
+
 describe("applyHwpTextStyle", () => {
   it("creates a new charPr and retargets the run carrying the target text", async () => {
     const r = await applyHwpTextStyle({
