@@ -135,6 +135,67 @@ function escapeMd(s: string): string {
   return s.replace(/\|/g, "\\|").replace(/\n/g, " ");
 }
 
+export interface ImageRef {
+  section: number;
+  paragraph: number;
+  controlIdx: number;
+  mime: string;
+  byteLength: number;
+  ext: string;
+}
+
+function extFromMime(mime: string): string {
+  const m = mime.toLowerCase();
+  if (m.includes("png")) return "png";
+  if (m.includes("jpeg") || m.includes("jpg")) return "jpg";
+  if (m.includes("gif")) return "gif";
+  if (m.includes("bmp")) return "bmp";
+  if (m.includes("svg")) return "svg";
+  if (m.includes("webp")) return "webp";
+  if (m.includes("emf")) return "emf";
+  if (m.includes("wmf")) return "wmf";
+  return "bin";
+}
+
+export function walkImages(doc: HwpDocument): ImageRef[] {
+  const out: ImageRef[] = [];
+  const sectionCount = doc.getSectionCount();
+  for (let s = 0; s < sectionCount; s++) {
+    const paraCount = doc.getParagraphCount(s);
+    for (let p = 0; p < paraCount; p++) {
+      const n = controlCount(doc, s, p);
+      for (let ci = 0; ci < n; ci++) {
+        let mime: string;
+        try {
+          mime = doc.getControlImageMime(s, p, ci);
+        } catch {
+          continue;
+        }
+        if (!mime) continue;
+        let bytes: Uint8Array;
+        try {
+          bytes = doc.getControlImageData(s, p, ci);
+        } catch {
+          continue;
+        }
+        out.push({
+          section: s,
+          paragraph: p,
+          controlIdx: ci,
+          mime,
+          byteLength: bytes.byteLength,
+          ext: extFromMime(mime),
+        });
+      }
+    }
+  }
+  return out;
+}
+
+export function getImageBytes(doc: HwpDocument, ref: ImageRef): Uint8Array {
+  return doc.getControlImageData(ref.section, ref.paragraph, ref.controlIdx);
+}
+
 export function tableToMarkdown(t: TableData): string {
   if (t.rows === 0 || t.cols === 0) return "";
   const [header, ...rest] = t.cells;
