@@ -31,3 +31,20 @@ export function closeDocument(doc: HwpDocument): void {
     /* already freed */
   }
 }
+
+export function walkText(doc: HwpDocument): string {
+  const lines: string[] = [];
+  const sectionCount = doc.getSectionCount();
+  for (let s = 0; s < sectionCount; s++) {
+    const paraCount = doc.getParagraphCount(s);
+    for (let p = 0; p < paraCount; p++) {
+      const len = doc.getParagraphLength(s, p);
+      if (len === 0) {
+        lines.push("");
+        continue;
+      }
+      lines.push(doc.getTextRange(s, p, 0, len));
+    }
+  }
+  return lines.join("\n");
+}
