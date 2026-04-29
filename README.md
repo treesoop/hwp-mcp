@@ -52,7 +52,7 @@ Node.js 20 이상 필요.
 
 ## 도구 목록
 
-`hwp-mcp` v0.2가 노출하는 25개 MCP 도구입니다. 읽기·렌더는 `.hwp`/`.hwpx` 모두 지원, 쓰기는 `.hwpx` 전용입니다.
+`hwp-mcp` v0.2가 노출하는 **29개 MCP 도구**입니다. 읽기·렌더는 `.hwp`/`.hwpx` 모두 지원, 쓰기는 `.hwpx` 전용입니다.
 
 ### 읽기 (5)
 
@@ -92,7 +92,7 @@ Node.js 20 이상 필요.
 | `set_hwp_cell_text` | ✅ | 표 셀 (행, 열) 텍스트 직접 설정 |
 | `set_hwp_field_value` | ✅ | 필드 값 설정 |
 
-### 쓰기 — 구조 (5)
+### 쓰기 — 구조 (7)
 
 | 도구 | `.hwpx` | 설명 |
 |------|:---:|------|
@@ -100,13 +100,17 @@ Node.js 20 이상 필요.
 | `delete_hwp_paragraph` | ✅ | N번째 문단 삭제 |
 | `append_hwp_table_row` | ✅ | 표 마지막에 새 행 추가 |
 | `delete_hwp_table_row` | ✅ | 표 행 삭제 |
+| `append_hwp_table_column` | ✅ | 표 끝에 새 열 추가 (모든 행에) |
+| `delete_hwp_table_column` | ✅ | 표 열 삭제 |
 | `replace_hwp_image` | ✅ | 임베디드 이미지를 다른 파일로 교체 |
 
-### 쓰기 — 이미지 / 신규 (2)
+### 쓰기 — 이미지 / 서식 / 신규 (4)
 
 | 도구 | `.hwpx` | 설명 |
 |------|:---:|------|
+| `insert_hwp_image` | ✅ | 새 이미지 추가 (BinData + manifest + `<hp:pic>`) |
 | `delete_hwp_image` | ✅ | BinData/ 엔트리 삭제 |
+| `apply_hwp_text_style` | ✅ | 글자 색·볼드·이탤릭·밑줄·크기 적용 (charPr 추가) |
 | `create_hwpx_document` | ✅ | 텍스트로 새 `.hwpx` 만들기 |
 
 ## 컨텐츠 추출 매트릭스
@@ -138,9 +142,9 @@ Node.js 20 이상 필요.
 | 이미지 교체 / 삭제 | ❌ | ✅ | `replace_hwp_image` / `delete_hwp_image` |
 | 새 문서 생성 (텍스트) | – | ✅ | `create_hwpx_document` |
 | 새 문서 생성 (표) | – | ⚠️ | 텍스트 행으로 평탄화 (v0.3에서 진짜 OWPML 표) |
-| 새 이미지 삽입 | ❌ | ❌ | v0.3 (BinData + manifest + `<hp:pic>` 조립 필요) |
-| 표 열 추가 / 삭제 | ❌ | ❌ | v0.3 |
-| 글자 서식 (색·볼드) | ❌ | ❌ | v0.3 (charPr 정의 + run 매핑) |
+| 새 이미지 삽입 | ❌ | ✅ | `insert_hwp_image` |
+| 표 열 추가 / 삭제 | ❌ | ✅ | `append_hwp_table_column` / `delete_hwp_table_column` |
+| 글자 서식 (색·볼드·이탤릭·밑줄·크기) | ❌ | ✅ | `apply_hwp_text_style` |
 | 머리말/꼬리말 신규 삽입 | ❌ | ❌ | v0.3 |
 
 > `.hwp` 바이너리 쓰기는 rhwp 0.7.7 의 `exportHwp` 라운드트립 한계로 v0.2에서 미지원. 한컴오피스에서 `.hwpx`로 다른 이름 저장 후 쓰기 도구를 사용하시거나, v0.3 릴리스를 기다려주세요.

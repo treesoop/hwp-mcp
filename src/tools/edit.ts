@@ -3,13 +3,18 @@ import { extname } from "node:path";
 import { getFormatFromPath } from "../core/document.js";
 import {
   appendHwpxParagraph,
+  appendHwpxTableColumn,
   appendHwpxTableRow,
+  applyHwpxTextStyle,
   deleteHwpxImage,
   deleteHwpxParagraph,
+  deleteHwpxTableColumn,
   deleteHwpxTableRow,
+  insertHwpxImage,
   setHwpxCellText,
   setHwpxFieldValue,
   setHwpxParagraphText,
+  type TextStyle,
 } from "../core/hwpx-mutate.js";
 
 function defaultOutput(input: string, suffix: string): string {
@@ -187,6 +192,116 @@ export async function setHwpCellText(args: SetCellTextArgs): Promise<string> {
     return `표 ${args.table_index} 셀 (${args.row},${args.col}) 텍스트 설정\n저장 (saved): ${out}`;
   } catch (e) {
     return `셀 텍스트 설정 오류 (set cell text error): ${(e as Error).message}`;
+  }
+}
+
+export interface AppendColumnArgs {
+  file_path: string;
+  table_index: number;
+  cells: string;
+  output_path?: string;
+}
+
+export async function appendHwpTableColumn(args: AppendColumnArgs): Promise<string> {
+  const err = preflight(args.file_path);
+  if (err) return err;
+  let cells: string[];
+  try {
+    cells = JSON.parse(args.cells);
+    if (!Array.isArray(cells)) throw new Error("cells must be a JSON string array");
+  } catch (e) {
+    return `cells JSON 파싱 오류 (cells JSON error): ${(e as Error).message}`;
+  }
+  const out = args.output_path && args.output_path.length > 0
+    ? args.output_path
+    : defaultOutput(args.file_path, "col-added");
+  try {
+    const r = await appendHwpxTableColumn(args.file_path, out, args.table_index, cells);
+    return `표 ${args.table_index} 열 추가 (column appended): ${r.inserted}개 셀, ${r.rows}행 영향\n저장 (saved): ${out}`;
+  } catch (e) {
+    return `표 열 추가 오류 (append column error): ${(e as Error).message}`;
+  }
+}
+
+export interface DeleteColumnArgs {
+  file_path: string;
+  table_index: number;
+  col_index: number;
+  output_path?: string;
+}
+
+export async function deleteHwpTableColumn(args: DeleteColumnArgs): Promise<string> {
+  const err = preflight(args.file_path);
+  if (err) return err;
+  const out = args.output_path && args.output_path.length > 0
+    ? args.output_path
+    : defaultOutput(args.file_path, "col-deleted");
+  try {
+    const r = await deleteHwpxTableColumn(args.file_path, out, args.table_index, args.col_index);
+    return `표 ${args.table_index} 열 ${args.col_index} 삭제 (deleted) — ${r.rowsAffected}행 영향\n저장 (saved): ${out}`;
+  } catch (e) {
+    return `표 열 삭제 오류 (delete column error): ${(e as Error).message}`;
+  }
+}
+
+export interface InsertImageArgs {
+  file_path: string;
+  source_path: string;
+  ext?: string;
+  output_path?: string;
+}
+
+export async function insertHwpImage(args: InsertImageArgs): Promise<string> {
+  const err = preflight(args.file_path);
+  if (err) return err;
+  if (!existsSync(args.source_path)) {
+    return `이미지 소스 파일 없음 (source not found): ${args.source_path}`;
+  }
+  const out = args.output_path && args.output_path.length > 0
+    ? args.output_path
+    : defaultOutput(args.file_path, "img-added");
+  const allowedExts = new Set(["png", "jpg", "bmp", "gif"]);
+  const ext = (args.ext ?? extname(args.source_path).slice(1).toLowerCase()) as "png" | "jpg" | "bmp" | "gif";
+  if (!allowedExts.has(ext)) {
+    return `지원하지 않는 형식 (unsupported ext): .${ext}. png/jpg/bmp/gif 만 지원.`;
+  }
+  try {
+    const r = await insertHwpxImage(args.file_path, out, args.source_path, ext);
+    return `이미지 삽입 완료 (image inserted): ${r.entry} (id=${r.itemId})\n저장 (saved): ${out}`;
+  } catch (e) {
+    return `이미지 삽입 오류 (insert image error): ${(e as Error).message}`;
+  }
+}
+
+export interface ApplyStyleArgs {
+  file_path: string;
+  target_text: string;
+  color?: string;
+  bold?: boolean;
+  italic?: boolean;
+  underline?: boolean;
+  font_size?: number;
+  output_path?: string;
+}
+
+export async function applyHwpTextStyle(args: ApplyStyleArgs): Promise<string> {
+  const err = preflight(args.file_path);
+  if (err) return err;
+  const out = args.output_path && args.output_path.length > 0
+    ? args.output_path
+    : defaultOutput(args.file_path, "styled");
+  const style: TextStyle = {};
+  if (args.color) style.color = args.color.replace(/^#/, "");
+  if (args.bold !== undefined) style.bold = args.bold;
+  if (args.italic !== undefined) style.italic = args.italic;
+  if (args.underline !== undefined) style.underline = args.underline;
+  if (args.font_size !== undefined) style.fontSize = args.font_size;
+  try {
+    const r = await applyHwpxTextStyle(args.file_path, out, args.target_text, style);
+    if (r.retargeted === 0) return `대상 텍스트를 찾지 못했습니다 (target not found): ${args.target_text}`;
+    return `텍스트 서식 적용 (style applied): '${args.target_text}' → charPrId=${r.charPrId}\n저장 (saved): ${out}`;
+  } catch (e) {
+    return `서식 적용 오류 (style error): ${(e as Error).message}`;
   }
 }
 

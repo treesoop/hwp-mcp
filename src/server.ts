@@ -20,6 +20,10 @@ import {
   deleteHwpParagraph,
   appendHwpTableRow,
   deleteHwpTableRow,
+  appendHwpTableColumn,
+  deleteHwpTableColumn,
+  insertHwpImage,
+  applyHwpTextStyle,
   deleteHwpImage,
   setHwpFieldValue,
   setHwpParagraphText,
@@ -302,6 +306,70 @@ const TOOLS = [
     },
   },
   {
+    name: "append_hwp_table_column",
+    description:
+      "Append a new column to the Nth table in an .hwpx. `cells` is a JSON string array of cell texts (one per row, top-to-bottom). Args: file_path, table_index, cells, output_path (optional).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        file_path: { type: "string" },
+        table_index: { type: "number" },
+        cells: { type: "string" },
+        output_path: { type: "string" },
+      },
+      required: ["file_path", "table_index", "cells"],
+    },
+  },
+  {
+    name: "delete_hwp_table_column",
+    description:
+      "Delete the Mth column (0-based) from the Nth table in an .hwpx (removes one <hp:tc> from every row). Args: file_path, table_index, col_index, output_path (optional).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        file_path: { type: "string" },
+        table_index: { type: "number" },
+        col_index: { type: "number" },
+        output_path: { type: "string" },
+      },
+      required: ["file_path", "table_index", "col_index"],
+    },
+  },
+  {
+    name: "insert_hwp_image",
+    description:
+      "Insert a new image into an .hwpx — adds the file to BinData/, registers it in content.hpf, and appends a paragraph with an inline <hp:pic>. Args: file_path, source_path, ext (png/jpg/bmp/gif; auto from source_path if omitted), output_path (optional).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        file_path: { type: "string" },
+        source_path: { type: "string" },
+        ext: { type: "string" },
+        output_path: { type: "string" },
+      },
+      required: ["file_path", "source_path"],
+    },
+  },
+  {
+    name: "apply_hwp_text_style",
+    description:
+      "Apply formatting (color/bold/italic/underline/font_size) to the first run that contains target_text. Adds a new charPr to header.xml and retargets the matching <hp:run>. Color is a 6-digit hex (e.g. 'FF0000'). Args: file_path, target_text, color/bold/italic/underline/font_size (any subset), output_path (optional).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        file_path: { type: "string" },
+        target_text: { type: "string" },
+        color: { type: "string" },
+        bold: { type: "boolean" },
+        italic: { type: "boolean" },
+        underline: { type: "boolean" },
+        font_size: { type: "number" },
+        output_path: { type: "string" },
+      },
+      required: ["file_path", "target_text"],
+    },
+  },
+  {
     name: "delete_hwp_image",
     description:
       "Delete a BinData/ ZIP entry inside an .hwpx (effectively removes the embedded image bytes). Args: file_path, target (basename or full entry), output_path (optional).",
@@ -378,6 +446,10 @@ const HANDLERS: Record<string, (args: any) => Promise<string>> = {
   delete_hwp_paragraph: deleteHwpParagraph,
   append_hwp_table_row: appendHwpTableRow,
   delete_hwp_table_row: deleteHwpTableRow,
+  append_hwp_table_column: appendHwpTableColumn,
+  delete_hwp_table_column: deleteHwpTableColumn,
+  insert_hwp_image: insertHwpImage,
+  apply_hwp_text_style: applyHwpTextStyle,
   set_hwp_paragraph_text: setHwpParagraphText,
   set_hwp_cell_text: setHwpCellText,
   set_hwp_field_value: setHwpFieldValue,
