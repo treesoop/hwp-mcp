@@ -151,3 +151,145 @@ export async function listHwpxBinDataEntries(inputPath: string): Promise<string[
     .filter((n) => n.startsWith("BinData/"))
     .sort();
 }
+
+// ---------- Structured edits via XML clone-and-mutate ----------
+
+const PARA_REGEX = /<hp:p [^>]*>[\s\S]*?<\/hp:p>/g;
+
+async function loadSection(inputPath: string): Promise<{ zip: JSZip; sectionName: string; xml: string }> {
+  const bytes = await readFile(inputPath);
+  const zip = await JSZip.loadAsync(bytes);
+  const sectionName = Object.keys(zip.files).find((n) => /^Contents\/section\d+\.xml$/i.test(n));
+  if (!sectionName) throw new Error("No Contents/section*.xml found in .hwpx");
+  const xml = await zip.files[sectionName].async("string");
+  return { zip, sectionName, xml };
+}
+
+async function writeSection(zip: JSZip, sectionName: string, xml: string, outputPath: string): Promise<void> {
+  zip.file(sectionName, xml);
+  if (zip.files["mimetype"]) {
+    const mt = await zip.files["mimetype"].async("string");
+    zip.file("mimetype", mt, { compression: "STORE" });
+  }
+  const out = await zip.generateAsync({
+    type: "uint8array",
+    compression: "DEFLATE",
+    compressionOptions: { level: 6 },
+  });
+  await writeFile(outputPath, out);
+}
+
+function freshId(): string {
+  return String(Math.floor(Math.random() * 4_000_000_000));
+}
+
+export async function appendHwpxParagraph(
+  inputPath: string,
+  outputPath: string,
+  text: string
+): Promise<{ inserted: number }> {
+  const { zip, sectionName, xml } = await loadSection(inputPath);
+  const matches = [...xml.matchAll(PARA_REGEX)];
+  if (matches.length === 0) throw new Error("No <hp:p> paragraph found in section to clone");
+  const last = matches[matches.length - 1][0];
+  // Extract <hp:p> attributes (paraPrIDRef, styleIDRef, etc.) — keep them,
+  // but build a minimal body to avoid cloning embedded secPr/linesegarray/etc.
+  const openTagMatch = last.match(/^<hp:p ([^>]*)>/);
+  if (!openTagMatch) throw new Error("Could not parse <hp:p> opening tag");
+  const attrs = openTagMatch[1].replace(/\s*id="\d+"\s*/, ` id="${freshId()}" `);
+  // Find a charPrIDRef from any <hp:run ...> inside the cloned para; default 0.
+  const charPrMatch = last.match(/<hp:run [^>]*charPrIDRef="(\d+)"/);
+  const charPrId = charPrMatch ? charPrMatch[1] : "0";
+  const newPara =
+    `<hp:p ${attrs}>` +
+    `<hp:run charPrIDRef="${charPrId}"><hp:t>${xmlEscape(text)}</hp:t></hp:run>` +
+    `</hp:p>`;
+  const newXml = xml.replace(/<\/hs:sec>\s*$/, newPara + "</hs:sec>");
+  await writeSection(zip, sectionName, newXml, outputPath);
+  return { inserted: 1 };
+}
+
+export async function deleteHwpxParagraph(
+  inputPath: string,
+  outputPath: string,
+  index: number
+): Promise<{ deleted: number; total: number }> {
+  const { zip, sectionName, xml } = await loadSection(inputPath);
+  const matches = [...xml.matchAll(PARA_REGEX)];
+  if (index < 0 || index >= matches.length) {
+    return { deleted: 0, total: matches.length };
+  }
+  const target = matches[index][0];
+  const newXml = xml.replace(target, "");
+  await writeSection(zip, sectionName, newXml, outputPath);
+  return { deleted: 1, total: matches.length };
+}
+
+export async function appendHwpxTableRow(
+  inputPath: string,
+  outputPath: string,
+  tableIndex: number,
+  cells: string[]
+): Promise<{ inserted: number; tableCols: number }> {
+  const { zip, sectionName, xml } = await loadSection(inputPath);
+  // Find all <hp:tbl ...>...</hp:tbl>
+  const tblRegex = /<hp:tbl [^>]*>[\s\S]*?<\/hp:tbl>/g;
+  const tables = [...xml.matchAll(tblRegex)];
+  if (tableIndex < 0 || tableIndex >= tables.length) {
+    throw new Error(`Table index out of range: ${tableIndex} (found ${tables.length})`);
+  }
+  const tableXml = tables[tableIndex][0];
+  // Find the last <hp:tr ...>...</hp:tr>
+  const trRegex = /<hp:tr>[\s\S]*?<\/hp:tr>/g;
+  const trs = [...tableXml.matchAll(trRegex)];
+  if (trs.length === 0) throw new Error("No <hp:tr> found in target table");
+  const lastTr = trs[trs.length - 1][0];
+  // Count <hp:tc> in last row to know column count
+  const tcs = lastTr.match(/<hp:tc>/g) ?? [];
+  const tableCols = tcs.length;
+  // Clone last row, replace each <hp:t>...</hp:t> with the next cell text
+  // (simplification: assume each <hp:tc> contains exactly one <hp:t>)
+  let cellIdx = 0;
+  const newTr = lastTr.replace(/<hp:t>[^<]*<\/hp:t>/g, () => {
+    const txt = cells[cellIdx] ?? "";
+    cellIdx++;
+    return `<hp:t>${xmlEscape(txt)}</hp:t>`;
+  })
+    .replace(/id="\d+"/g, () => `id="${freshId()}"`)
+    .replace(/<hp:linesegarray>[\s\S]*?<\/hp:linesegarray>/g, "");
+  const newTableXml = tableXml.replace(/<\/hp:tbl>\s*$/, newTr + "</hp:tbl>");
+  const newXml = xml.replace(tableXml, newTableXml);
+  await writeSection(zip, sectionName, newXml, outputPath);
+  return { inserted: 1, tableCols };
+}
+
+export async function deleteHwpxImage(
+  inputPath: string,
+  outputPath: string,
+  target: string
+): Promise<{ deleted: string | null }> {
+  const bytes = await readFile(inputPath);
+  const zip = await JSZip.loadAsync(bytes);
+  const fullEntry = target.includes("/") ? target : `BinData/${target}`;
+  const entryNames = Object.keys(zip.files).filter((n) => n.startsWith("BinData/"));
+  const match = entryNames.find(
+    (n) => n === fullEntry || n.endsWith("/" + target) || n === target
+  );
+  if (!match) {
+    if (zip.files["mimetype"]) {
+      const mt = await zip.files["mimetype"].async("string");
+      zip.file("mimetype", mt, { compression: "STORE" });
+    }
+    const out = await zip.generateAsync({ type: "uint8array", compression: "DEFLATE" });
+    await writeFile(outputPath, out);
+    return { deleted: null };
+  }
+  zip.remove(match);
+  if (zip.files["mimetype"]) {
+    const mt = await zip.files["mimetype"].async("string");
+    zip.file("mimetype", mt, { compression: "STORE" });
+  }
+  const out = await zip.generateAsync({ type: "uint8array", compression: "DEFLATE" });
+  await writeFile(outputPath, out);
+  return { deleted: match };
+}

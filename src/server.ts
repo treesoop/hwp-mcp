@@ -15,6 +15,13 @@ import {
 import { renderHwpPage, renderHwpAllPages } from "./tools/render.js";
 import { replaceHwpImage, listHwpBinData } from "./tools/replace-image.js";
 import { getHwpInfo, listHwpFields } from "./tools/info.js";
+import {
+  appendHwpParagraph,
+  deleteHwpParagraph,
+  appendHwpTableRow,
+  deleteHwpImage,
+} from "./tools/edit.js";
+import { renderHwpHtml, renderHwpEquationSvg } from "./tools/render-extra.js";
 
 const TOOLS = [
   {
@@ -173,6 +180,91 @@ const TOOLS = [
     },
   },
   {
+    name: "append_hwp_paragraph",
+    description:
+      "Append a new paragraph to the end of an .hwpx document body. Clones the last paragraph's structure (paraPr/charPr/style refs) and replaces text. Args: file_path, text, output_path (optional).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        file_path: { type: "string" },
+        text: { type: "string" },
+        output_path: { type: "string" },
+      },
+      required: ["file_path", "text"],
+    },
+  },
+  {
+    name: "delete_hwp_paragraph",
+    description:
+      "Delete the Nth paragraph (0-based) from an .hwpx body. Args: file_path, index, output_path (optional).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        file_path: { type: "string" },
+        index: { type: "number" },
+        output_path: { type: "string" },
+      },
+      required: ["file_path", "index"],
+    },
+  },
+  {
+    name: "append_hwp_table_row",
+    description:
+      "Append a new row to the Nth table (0-based) in an .hwpx. `cells` is a JSON string array of cell texts (length should match table column count). Args: file_path, table_index, cells, output_path (optional).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        file_path: { type: "string" },
+        table_index: { type: "number" },
+        cells: { type: "string" },
+        output_path: { type: "string" },
+      },
+      required: ["file_path", "table_index", "cells"],
+    },
+  },
+  {
+    name: "delete_hwp_image",
+    description:
+      "Delete a BinData/ ZIP entry inside an .hwpx (effectively removes the embedded image bytes). Args: file_path, target (basename or full entry), output_path (optional).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        file_path: { type: "string" },
+        target: { type: "string" },
+        output_path: { type: "string" },
+      },
+      required: ["file_path", "target"],
+    },
+  },
+  {
+    name: "render_hwp_html",
+    description:
+      "Render a single page of an HWP/HWPX as HTML. Useful for AI consumption when SVG isn't ideal. Args: file_path, page (0-based, default 0), output_path (optional).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        file_path: { type: "string" },
+        page: { type: "number" },
+        output_path: { type: "string" },
+      },
+      required: ["file_path"],
+    },
+  },
+  {
+    name: "render_hwp_equation_svg",
+    description:
+      "Render an OWPML equation script (e.g. 'TIMES LEFT ( {a} over {b} RIGHT )') to SVG. Args: script, font_size (HWP units, default 1300), color (default 0).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        script: { type: "string" },
+        font_size: { type: "number" },
+        color: { type: "number" },
+      },
+      required: ["script"],
+    },
+  },
+  {
     name: "create_hwpx_document",
     description:
       "Create a new .hwpx file from a JSON content list of {type:'text',text} items. Tables (type:'table',headers,rows) are rendered as flat text rows in v0.2. Args: output_path (must end with .hwpx), content (JSON string of items).",
@@ -202,6 +294,12 @@ const HANDLERS: Record<string, (args: any) => Promise<string>> = {
   list_hwp_fields: listHwpFields,
   list_hwp_bindata: listHwpBinData,
   replace_hwp_image: replaceHwpImage,
+  append_hwp_paragraph: appendHwpParagraph,
+  delete_hwp_paragraph: deleteHwpParagraph,
+  append_hwp_table_row: appendHwpTableRow,
+  delete_hwp_image: deleteHwpImage,
+  render_hwp_html: renderHwpHtml,
+  render_hwp_equation_svg: renderHwpEquationSvg,
 };
 
 export function buildServer(): Server {
