@@ -3,8 +3,10 @@
 > Claude · Cursor · ChatGPT 등 MCP 호환 AI에서 **한글 문서(.hwp / .hwpx)** 를 읽고 수정하고 새로 만들 수 있게 해주는 서버입니다.
 
 [![npm version](https://img.shields.io/npm/v/hwp-mcp.svg)](https://www.npmjs.com/package/hwp-mcp)
+[![npm downloads](https://img.shields.io/npm/dm/hwp-mcp.svg)](https://www.npmjs.com/package/hwp-mcp)
 [![Built on rhwp](https://img.shields.io/badge/built%20on-rhwp-blue)](https://github.com/edwardkim/rhwp)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![GitHub release](https://img.shields.io/github/v/release/treesoop/hwp-mcp)](https://github.com/treesoop/hwp-mcp/releases/latest)
 
 `hwp-mcp`은 한컴오피스 문서를 AI 에이전트가 직접 다루도록 해주는 MCP(Model Context Protocol) 서버입니다. **읽기뿐 아니라 텍스트 수정, 템플릿 채우기, 새 문서 생성까지 가능합니다.**
 
