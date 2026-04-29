@@ -64,6 +64,31 @@ export async function getHwpInfo(args: FilePathArgs): Promise<string> {
   }
 }
 
+export interface GetFieldArgs {
+  file_path: string;
+  name: string;
+}
+
+export async function getHwpFieldValue(args: GetFieldArgs): Promise<string> {
+  let doc;
+  try {
+    doc = await openDocument(args.file_path);
+  } catch (e) {
+    return (e as Error).message;
+  }
+  try {
+    let v: string;
+    try {
+      v = doc.getFieldValueByName(args.name);
+    } catch (e) {
+      return `필드를 찾지 못했습니다 (field not found): ${args.name}`;
+    }
+    return `${args.name} = ${v}`;
+  } finally {
+    closeDocument(doc);
+  }
+}
+
 export async function listHwpFields(args: FilePathArgs): Promise<string> {
   let doc;
   try {

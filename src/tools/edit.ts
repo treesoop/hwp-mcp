@@ -6,6 +6,10 @@ import {
   appendHwpxTableRow,
   deleteHwpxImage,
   deleteHwpxParagraph,
+  deleteHwpxTableRow,
+  setHwpxCellText,
+  setHwpxFieldValue,
+  setHwpxParagraphText,
 } from "../core/hwpx-mutate.js";
 
 function defaultOutput(input: string, suffix: string): string {
@@ -94,6 +98,95 @@ export async function appendHwpTableRow(args: AppendRowArgs): Promise<string> {
     return `표 ${args.table_index} 행 추가 (row appended): 1건, ${r.tableCols}열\n저장 (saved): ${out}`;
   } catch (e) {
     return `표 행 추가 오류 (append row error): ${(e as Error).message}`;
+  }
+}
+
+export interface DeleteRowArgs {
+  file_path: string;
+  table_index: number;
+  row_index: number;
+  output_path?: string;
+}
+
+export async function deleteHwpTableRow(args: DeleteRowArgs): Promise<string> {
+  const err = preflight(args.file_path);
+  if (err) return err;
+  const out = args.output_path && args.output_path.length > 0
+    ? args.output_path
+    : defaultOutput(args.file_path, "row-deleted");
+  try {
+    const r = await deleteHwpxTableRow(args.file_path, out, args.table_index, args.row_index);
+    if (r.deleted === 0) return `행 인덱스 범위 초과 (row index out of range): ${args.row_index} (남은 ${r.remaining})`;
+    return `표 ${args.table_index} 행 ${args.row_index} 삭제 (deleted)\n남은 행: ${r.remaining}\n저장 (saved): ${out}`;
+  } catch (e) {
+    return `표 행 삭제 오류 (delete row error): ${(e as Error).message}`;
+  }
+}
+
+export interface SetFieldArgs {
+  file_path: string;
+  name: string;
+  value: string;
+  output_path?: string;
+}
+
+export async function setHwpFieldValue(args: SetFieldArgs): Promise<string> {
+  const err = preflight(args.file_path);
+  if (err) return err;
+  const out = args.output_path && args.output_path.length > 0
+    ? args.output_path
+    : defaultOutput(args.file_path, "field-set");
+  try {
+    const r = await setHwpxFieldValue(args.file_path, out, args.name, args.value);
+    if (r.replaced === 0) return `필드를 찾지 못했습니다 (field not found): ${args.name}`;
+    return `필드 '${args.name}' = '${args.value}' (replaced ${r.replaced})\n저장 (saved): ${out}`;
+  } catch (e) {
+    return `필드 설정 오류 (set field error): ${(e as Error).message}`;
+  }
+}
+
+export interface SetParaTextArgs {
+  file_path: string;
+  index: number;
+  text: string;
+  output_path?: string;
+}
+
+export async function setHwpParagraphText(args: SetParaTextArgs): Promise<string> {
+  const err = preflight(args.file_path);
+  if (err) return err;
+  const out = args.output_path && args.output_path.length > 0
+    ? args.output_path
+    : defaultOutput(args.file_path, "para-set");
+  try {
+    const r = await setHwpxParagraphText(args.file_path, out, args.index, args.text);
+    if (r.replaced === 0) return `인덱스 범위 초과 (index out of range): ${args.index} (전체 ${r.total})`;
+    return `문단 ${args.index} 텍스트 설정 (paragraph text set)\n저장 (saved): ${out}`;
+  } catch (e) {
+    return `문단 텍스트 설정 오류 (set paragraph text error): ${(e as Error).message}`;
+  }
+}
+
+export interface SetCellTextArgs {
+  file_path: string;
+  table_index: number;
+  row: number;
+  col: number;
+  text: string;
+  output_path?: string;
+}
+
+export async function setHwpCellText(args: SetCellTextArgs): Promise<string> {
+  const err = preflight(args.file_path);
+  if (err) return err;
+  const out = args.output_path && args.output_path.length > 0
+    ? args.output_path
+    : defaultOutput(args.file_path, "cell-set");
+  try {
+    await setHwpxCellText(args.file_path, out, args.table_index, args.row, args.col, args.text);
+    return `표 ${args.table_index} 셀 (${args.row},${args.col}) 텍스트 설정\n저장 (saved): ${out}`;
+  } catch (e) {
+    return `셀 텍스트 설정 오류 (set cell text error): ${(e as Error).message}`;
   }
 }
 

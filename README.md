@@ -52,24 +52,62 @@ Node.js 20 이상 필요.
 
 ## 도구 목록
 
-`hwp-mcp` v0.2가 노출하는 14개 MCP 도구입니다. 읽기·렌더는 `.hwp`/`.hwpx` 모두 지원하며, 쓰기 도구는 `.hwpx` 전용입니다.
+`hwp-mcp` v0.2가 노출하는 25개 MCP 도구입니다. 읽기·렌더는 `.hwp`/`.hwpx` 모두 지원, 쓰기는 `.hwpx` 전용입니다.
 
-| # | 도구 | 카테고리 | `.hwp` | `.hwpx` | 설명 |
-|---|------|---------|:---:|:---:|------|
-| 1 | `read_hwp` | 읽기 | ✅ | ✅ | 본문 + 표(마크다운) + 이미지 목록 한 번에 |
-| 2 | `read_hwp_text` | 읽기 | ✅ | ✅ | 본문 + 머리말 + 꼬리말 + 각주 + 수식 통합 텍스트 |
-| 3 | `read_hwp_tables` | 읽기 | ✅ | ✅ | 표를 GitHub 마크다운으로 (셀 병합 처리) |
-| 4 | `list_hwp_images` | 읽기 | ✅ | ✅ | 임베디드 이미지 목록 (mime, 바이트) |
-| 5 | `extract_hwp_images` | 읽기 | ✅ | ✅ | 이미지를 디스크로 추출 |
-| 6 | `get_hwp_info` | 메타 | ✅ | ✅ | 버전·페이지 수·글꼴·표/이미지/각주/수식 통계 |
-| 7 | `list_hwp_fields` | 메타 | ✅ | ✅ | 한컴 필드 목록 (fill 전 미리 확인) |
-| 8 | `list_hwp_bindata` | 메타 | – | ✅ | `.hwpx` BinData/ 엔트리 목록 |
-| 9 | `render_hwp_page` | 시각 렌더 | ✅ | ✅ | 특정 페이지 → SVG (인라인 또는 파일) |
-| 10 | `render_hwp_all_pages` | 시각 렌더 | ✅ | ✅ | 전체 페이지 SVG 일괄 추출 |
-| 11 | `replace_hwp_text` | 쓰기 | ❌ | ✅ | 특정 문자열 찾아 바꾸기 |
-| 12 | `fill_hwp_template` | 쓰기 | ❌ | ✅ | `{{이름}}` · `{{회사}}` 등 다중 자리표시자 |
-| 13 | `replace_hwp_image` | 쓰기 | ❌ | ✅ | 임베디드 이미지를 다른 파일로 교체 |
-| 14 | `create_hwpx_document` | 쓰기 | – | ✅ | 텍스트로 새 `.hwpx` 만들기 |
+### 읽기 (5)
+
+| 도구 | `.hwp` | `.hwpx` | 설명 |
+|------|:---:|:---:|------|
+| `read_hwp` | ✅ | ✅ | 본문 + 표(마크다운) + 이미지 목록 한 번에 |
+| `read_hwp_text` | ✅ | ✅ | 본문 + 머리말 + 꼬리말 + 각주 + 수식 통합 텍스트 |
+| `read_hwp_tables` | ✅ | ✅ | 표를 GitHub 마크다운으로 (셀 병합 처리) |
+| `list_hwp_images` | ✅ | ✅ | 임베디드 이미지 목록 (mime, 바이트) |
+| `extract_hwp_images` | ✅ | ✅ | 이미지를 디스크로 추출 |
+
+### 메타 / 조회 (4)
+
+| 도구 | `.hwp` | `.hwpx` | 설명 |
+|------|:---:|:---:|------|
+| `get_hwp_info` | ✅ | ✅ | 버전·페이지·글꼴·표/이미지/각주/수식 통계 |
+| `list_hwp_fields` | ✅ | ✅ | 한컴 필드 목록 |
+| `get_hwp_field_value` | ✅ | ✅ | 필드 값 조회 |
+| `list_hwp_bindata` | – | ✅ | `.hwpx` BinData/ 엔트리 목록 |
+
+### 시각 렌더 (4)
+
+| 도구 | `.hwp` | `.hwpx` | 설명 |
+|------|:---:|:---:|------|
+| `render_hwp_page` | ✅ | ✅ | 특정 페이지 → SVG (인라인/파일) |
+| `render_hwp_all_pages` | ✅ | ✅ | 전체 페이지 SVG 일괄 |
+| `render_hwp_html` | ✅ | ✅ | 페이지 → HTML |
+| `render_hwp_equation_svg` | – | – | OWPML 수식 script → SVG |
+
+### 쓰기 — 텍스트 (5)
+
+| 도구 | `.hwpx` | 설명 |
+|------|:---:|------|
+| `replace_hwp_text` | ✅ | 특정 문자열 찾아 바꾸기 |
+| `fill_hwp_template` | ✅ | `{{이름}}` 등 다중 자리표시자 |
+| `set_hwp_paragraph_text` | ✅ | N번째 문단 텍스트 통째 교체 |
+| `set_hwp_cell_text` | ✅ | 표 셀 (행, 열) 텍스트 직접 설정 |
+| `set_hwp_field_value` | ✅ | 필드 값 설정 |
+
+### 쓰기 — 구조 (5)
+
+| 도구 | `.hwpx` | 설명 |
+|------|:---:|------|
+| `append_hwp_paragraph` | ✅ | 본문 끝에 새 문단 |
+| `delete_hwp_paragraph` | ✅ | N번째 문단 삭제 |
+| `append_hwp_table_row` | ✅ | 표 마지막에 새 행 추가 |
+| `delete_hwp_table_row` | ✅ | 표 행 삭제 |
+| `replace_hwp_image` | ✅ | 임베디드 이미지를 다른 파일로 교체 |
+
+### 쓰기 — 이미지 / 신규 (2)
+
+| 도구 | `.hwpx` | 설명 |
+|------|:---:|------|
+| `delete_hwp_image` | ✅ | BinData/ 엔트리 삭제 |
+| `create_hwpx_document` | ✅ | 텍스트로 새 `.hwpx` 만들기 |
 
 ## 컨텐츠 추출 매트릭스
 
@@ -92,11 +130,18 @@ Node.js 20 이상 필요.
 |---|:---:|:---:|---|
 | 텍스트 단일 치환 | ❌ | ✅ | `replace_hwp_text` |
 | 다중 자리표시자 채우기 | ❌ | ✅ | `fill_hwp_template` |
+| 문단 텍스트 통째 교체 | ❌ | ✅ | `set_hwp_paragraph_text` |
+| 표 셀 직접 수정 | ❌ | ✅ | `set_hwp_cell_text` (행·열 지정) |
+| 필드 값 설정 | ❌ | ✅ | `set_hwp_field_value` |
+| 새 문단 추가 / 삭제 | ❌ | ✅ | `append_hwp_paragraph` / `delete_hwp_paragraph` |
+| 표 행 추가 / 삭제 | ❌ | ✅ | `append_hwp_table_row` / `delete_hwp_table_row` |
+| 이미지 교체 / 삭제 | ❌ | ✅ | `replace_hwp_image` / `delete_hwp_image` |
 | 새 문서 생성 (텍스트) | – | ✅ | `create_hwpx_document` |
 | 새 문서 생성 (표) | – | ⚠️ | 텍스트 행으로 평탄화 (v0.3에서 진짜 OWPML 표) |
-| 새 문서 생성 (이미지) | – | ❌ | v0.3 |
-| 머리말/꼬리말 삽입 | ❌ | ❌ | rhwp API는 있음, MCP 노출 v0.3 |
-| 표 셀 텍스트 수정 | ❌ | ⚠️ | `replace_hwp_text` 가 `<hp:t>` 노드 내라면 동작 |
+| 새 이미지 삽입 | ❌ | ❌ | v0.3 (BinData + manifest + `<hp:pic>` 조립 필요) |
+| 표 열 추가 / 삭제 | ❌ | ❌ | v0.3 |
+| 글자 서식 (색·볼드) | ❌ | ❌ | v0.3 (charPr 정의 + run 매핑) |
+| 머리말/꼬리말 신규 삽입 | ❌ | ❌ | v0.3 |
 
 > `.hwp` 바이너리 쓰기는 rhwp 0.7.7 의 `exportHwp` 라운드트립 한계로 v0.2에서 미지원. 한컴오피스에서 `.hwpx`로 다른 이름 저장 후 쓰기 도구를 사용하시거나, v0.3 릴리스를 기다려주세요.
 

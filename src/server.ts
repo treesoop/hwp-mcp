@@ -14,12 +14,16 @@ import {
 } from "./tools/write.js";
 import { renderHwpPage, renderHwpAllPages } from "./tools/render.js";
 import { replaceHwpImage, listHwpBinData } from "./tools/replace-image.js";
-import { getHwpInfo, listHwpFields } from "./tools/info.js";
+import { getHwpInfo, listHwpFields, getHwpFieldValue } from "./tools/info.js";
 import {
   appendHwpParagraph,
   deleteHwpParagraph,
   appendHwpTableRow,
+  deleteHwpTableRow,
   deleteHwpImage,
+  setHwpFieldValue,
+  setHwpParagraphText,
+  setHwpCellText,
 } from "./tools/edit.js";
 import { renderHwpHtml, renderHwpEquationSvg } from "./tools/render-extra.js";
 
@@ -114,6 +118,19 @@ const TOOLS = [
       type: "object",
       properties: { file_path: { type: "string" } },
       required: ["file_path"],
+    },
+  },
+  {
+    name: "get_hwp_field_value",
+    description:
+      "Get a Hancom field's current value by name. Args: file_path, name.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        file_path: { type: "string" },
+        name: { type: "string" },
+      },
+      required: ["file_path", "name"],
     },
   },
   {
@@ -223,6 +240,68 @@ const TOOLS = [
     },
   },
   {
+    name: "delete_hwp_table_row",
+    description:
+      "Delete the Mth row (0-based) from the Nth table (0-based) in an .hwpx. Args: file_path, table_index, row_index, output_path (optional).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        file_path: { type: "string" },
+        table_index: { type: "number" },
+        row_index: { type: "number" },
+        output_path: { type: "string" },
+      },
+      required: ["file_path", "table_index", "row_index"],
+    },
+  },
+  {
+    name: "set_hwp_paragraph_text",
+    description:
+      "Replace the entire text of the Nth paragraph (0-based) in an .hwpx body with new text. The paragraph attributes (paraPr/style refs) are preserved; runs are collapsed into a single <hp:run> with the new text. Args: file_path, index, text, output_path (optional).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        file_path: { type: "string" },
+        index: { type: "number" },
+        text: { type: "string" },
+        output_path: { type: "string" },
+      },
+      required: ["file_path", "index", "text"],
+    },
+  },
+  {
+    name: "set_hwp_cell_text",
+    description:
+      "Replace a single cell's text in a table inside an .hwpx. Args: file_path, table_index, row, col (all 0-based), text, output_path (optional).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        file_path: { type: "string" },
+        table_index: { type: "number" },
+        row: { type: "number" },
+        col: { type: "number" },
+        text: { type: "string" },
+        output_path: { type: "string" },
+      },
+      required: ["file_path", "table_index", "row", "col", "text"],
+    },
+  },
+  {
+    name: "set_hwp_field_value",
+    description:
+      "Set a Hancom field's value by name in an .hwpx (writes the new text between the matching `<hp:fldBegin name=...>` and `<hp:fldEnd>`). Use list_hwp_fields first to discover names. Args: file_path, name, value, output_path (optional).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        file_path: { type: "string" },
+        name: { type: "string" },
+        value: { type: "string" },
+        output_path: { type: "string" },
+      },
+      required: ["file_path", "name", "value"],
+    },
+  },
+  {
     name: "delete_hwp_image",
     description:
       "Delete a BinData/ ZIP entry inside an .hwpx (effectively removes the embedded image bytes). Args: file_path, target (basename or full entry), output_path (optional).",
@@ -292,11 +371,16 @@ const HANDLERS: Record<string, (args: any) => Promise<string>> = {
   render_hwp_all_pages: renderHwpAllPages,
   get_hwp_info: getHwpInfo,
   list_hwp_fields: listHwpFields,
+  get_hwp_field_value: getHwpFieldValue,
   list_hwp_bindata: listHwpBinData,
   replace_hwp_image: replaceHwpImage,
   append_hwp_paragraph: appendHwpParagraph,
   delete_hwp_paragraph: deleteHwpParagraph,
   append_hwp_table_row: appendHwpTableRow,
+  delete_hwp_table_row: deleteHwpTableRow,
+  set_hwp_paragraph_text: setHwpParagraphText,
+  set_hwp_cell_text: setHwpCellText,
+  set_hwp_field_value: setHwpFieldValue,
   delete_hwp_image: deleteHwpImage,
   render_hwp_html: renderHwpHtml,
   render_hwp_equation_svg: renderHwpEquationSvg,

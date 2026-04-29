@@ -263,6 +263,134 @@ export async function appendHwpxTableRow(
   return { inserted: 1, tableCols };
 }
 
+export async function deleteHwpxTableRow(
+  inputPath: string,
+  outputPath: string,
+  tableIndex: number,
+  rowIndex: number
+): Promise<{ deleted: number; remaining: number }> {
+  const { zip, sectionName, xml } = await loadSection(inputPath);
+  const tblRegex = /<hp:tbl [^>]*>[\s\S]*?<\/hp:tbl>/g;
+  const tables = [...xml.matchAll(tblRegex)];
+  if (tableIndex < 0 || tableIndex >= tables.length) {
+    return { deleted: 0, remaining: tables.length };
+  }
+  const tableXml = tables[tableIndex][0];
+  const trRegex = /<hp:tr>[\s\S]*?<\/hp:tr>/g;
+  const trs = [...tableXml.matchAll(trRegex)];
+  if (rowIndex < 0 || rowIndex >= trs.length) {
+    return { deleted: 0, remaining: trs.length };
+  }
+  const target = trs[rowIndex][0];
+  const newTableXml = tableXml.replace(target, "");
+  const newXml = xml.replace(tableXml, newTableXml);
+  await writeSection(zip, sectionName, newXml, outputPath);
+  return { deleted: 1, remaining: trs.length - 1 };
+}
+
+export async function setHwpxFieldValue(
+  inputPath: string,
+  outputPath: string,
+  fieldName: string,
+  value: string
+): Promise<{ replaced: number }> {
+  const { zip, sectionName, xml } = await loadSection(inputPath);
+  // OWPML field markers: <hp:fldBegin name="..." .../> ... text ... <hp:fldEnd .../>
+  // Or as attribute on <hp:run>. Strategy: find each fldBegin/fldEnd pair where name matches,
+  // then replace any <hp:t>...</hp:t> between them with new value (in the *first* such pair).
+  // This is best-effort; full schema support comes in v0.3.
+  const fldBeginRegex = new RegExp(
+    `<hp:fldBegin[^/>]*name="${escapeRegex(fieldName)}"[^/>]*/?>`,
+    "g"
+  );
+  const beginMatches = [...xml.matchAll(fldBeginRegex)];
+  if (beginMatches.length === 0) {
+    return { replaced: 0 };
+  }
+  // Take the first occurrence; find the next <hp:fldEnd .../> after it
+  const begin = beginMatches[0];
+  const startIdx = (begin.index ?? 0) + begin[0].length;
+  const fldEndRegex = /<hp:fldEnd[^/>]*\/?>/g;
+  fldEndRegex.lastIndex = startIdx;
+  const endMatch = fldEndRegex.exec(xml);
+  if (!endMatch) {
+    return { replaced: 0 };
+  }
+  const before = xml.slice(0, startIdx);
+  const between = xml.slice(startIdx, endMatch.index);
+  const after = xml.slice(endMatch.index);
+  const newBetween = between.replace(
+    /<hp:t>[^<]*<\/hp:t>/g,
+    `<hp:t>${xmlEscape(value)}</hp:t>`
+  );
+  const newXml = before + newBetween + after;
+  await writeSection(zip, sectionName, newXml, outputPath);
+  return { replaced: 1 };
+}
+
+export async function setHwpxParagraphText(
+  inputPath: string,
+  outputPath: string,
+  index: number,
+  text: string
+): Promise<{ replaced: number; total: number }> {
+  const { zip, sectionName, xml } = await loadSection(inputPath);
+  const matches = [...xml.matchAll(PARA_REGEX)];
+  if (index < 0 || index >= matches.length) {
+    return { replaced: 0, total: matches.length };
+  }
+  const para = matches[index][0];
+  // Replace every <hp:t>...</hp:t> with one carrying the new text;
+  // collapse to a single <hp:run><hp:t>NEW</hp:t></hp:run> body inside the
+  // paragraph wrapper to avoid duplicating runs.
+  const open = para.match(/^<hp:p [^>]*>/)?.[0] ?? "<hp:p>";
+  const close = "</hp:p>";
+  const charPrMatch = para.match(/<hp:run [^>]*charPrIDRef="(\d+)"/);
+  const charPrId = charPrMatch ? charPrMatch[1] : "0";
+  const newPara =
+    open +
+    `<hp:run charPrIDRef="${charPrId}"><hp:t>${xmlEscape(text)}</hp:t></hp:run>` +
+    close;
+  const newXml = xml.replace(para, newPara);
+  await writeSection(zip, sectionName, newXml, outputPath);
+  return { replaced: 1, total: matches.length };
+}
+
+export async function setHwpxCellText(
+  inputPath: string,
+  outputPath: string,
+  tableIndex: number,
+  rowIndex: number,
+  colIndex: number,
+  text: string
+): Promise<{ replaced: number }> {
+  const { zip, sectionName, xml } = await loadSection(inputPath);
+  const tblRegex = /<hp:tbl [^>]*>[\s\S]*?<\/hp:tbl>/g;
+  const tables = [...xml.matchAll(tblRegex)];
+  if (tableIndex < 0 || tableIndex >= tables.length) {
+    throw new Error(`Table index out of range: ${tableIndex} (total ${tables.length})`);
+  }
+  const tableXml = tables[tableIndex][0];
+  const trRegex = /<hp:tr>[\s\S]*?<\/hp:tr>/g;
+  const trs = [...tableXml.matchAll(trRegex)];
+  if (rowIndex < 0 || rowIndex >= trs.length) {
+    throw new Error(`Row index out of range: ${rowIndex} (total ${trs.length})`);
+  }
+  const trXml = trs[rowIndex][0];
+  const tcRegex = /<hp:tc>[\s\S]*?<\/hp:tc>/g;
+  const tcs = [...trXml.matchAll(tcRegex)];
+  if (colIndex < 0 || colIndex >= tcs.length) {
+    throw new Error(`Col index out of range: ${colIndex} (total ${tcs.length})`);
+  }
+  const tcXml = tcs[colIndex][0];
+  const newTcXml = tcXml.replace(/<hp:t>[^<]*<\/hp:t>/, `<hp:t>${xmlEscape(text)}</hp:t>`);
+  const newTrXml = trXml.replace(tcXml, newTcXml);
+  const newTableXml = tableXml.replace(trXml, newTrXml);
+  const newXml = xml.replace(tableXml, newTableXml);
+  await writeSection(zip, sectionName, newXml, outputPath);
+  return { replaced: 1 };
+}
+
 export async function deleteHwpxImage(
   inputPath: string,
   outputPath: string,
