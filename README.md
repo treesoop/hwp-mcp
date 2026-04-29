@@ -44,7 +44,7 @@ Node.js 20 이상 필요.
 | # | 도구 | 카테고리 | `.hwp` | `.hwpx` | 설명 |
 |---|------|---------|:---:|:---:|------|
 | 1 | `read_hwp` | 읽기 | ✅ | ✅ | 본문 + 표(마크다운) + 이미지 목록 한 번에 |
-| 2 | `read_hwp_text` | 읽기 | ✅ | ✅ | 본문 + 머리말 + 꼬리말 + 각주 통합 텍스트 |
+| 2 | `read_hwp_text` | 읽기 | ✅ | ✅ | 본문 + 머리말 + 꼬리말 + 각주 + 수식 통합 텍스트 |
 | 3 | `read_hwp_tables` | 읽기 | ✅ | ✅ | 표를 GitHub 마크다운으로 (셀 병합 처리) |
 | 4 | `list_hwp_images` | 읽기 | ✅ | ✅ | 임베디드 이미지 목록 (mime, 바이트) |
 | 5 | `extract_hwp_images` | 읽기 | ✅ | ✅ | 이미지를 디스크로 추출 |
@@ -63,10 +63,10 @@ Node.js 20 이상 필요.
 | 임베디드 이미지 | ✅ | PNG/JPG/BMP 등 추출 |
 | **머리말 / 꼬리말** | ✅ | `read_hwp_text` 결과에 `--- headers ---` / `--- footers ---` 블록 |
 | **각주(footnote)** | ✅ | 결과 끝에 `--- footnotes ---` 블록, `[1] 본문…` 형태 |
+| **수식(equation)** | ✅ | OWPML script 형태 (예: `TIMES LEFT ( {a} over {b} RIGHT )`), `--- equations ---` 블록 |
 | 페이지 SVG 렌더 | ✅ | `render_hwp_page` |
-| 텍스트박스 본문 | ❌ | v0.3 |
-| 미주(endnote) | ❌ | v0.3 |
-| 수식(equation) | ❌ | rhwp는 추출 가능, 우리 노출 v0.3 |
+| 텍스트박스 본문 | ❌ | rhwp의 `createShapeControl`은 만들지만 `getTextBoxControlIndex` 반환 패턴이 비명시적 — v0.3에서 trace |
+| 미주(endnote) | – | rhwp 자체 미지원 (footnote만) |
 | 차트(chart) | ❌ | v0.3 이후 |
 
 ## 작성 매트릭스
