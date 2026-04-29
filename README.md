@@ -8,7 +8,20 @@
 
 `hwp-mcp`은 한컴오피스 문서를 AI 에이전트가 직접 다루도록 해주는 MCP(Model Context Protocol) 서버입니다. **읽기뿐 아니라 텍스트 수정, 템플릿 채우기, 새 문서 생성까지 가능합니다.**
 
-> **rhwp 기반.** 이 프로젝트는 [Edward Kim](https://github.com/edwardkim) 님의 [**rhwp**](https://github.com/edwardkim/rhwp) (Rust + WebAssembly HWP/HWPX 엔진) 위에 얹은 얇은 MCP 어댑터입니다. 닫힌 한글 포맷의 벽을 깨주신 rhwp 프로젝트에 감사드립니다 🙏
+## 어떤 프로젝트인가요?
+
+이 프로젝트는 두 부분으로 나뉩니다.
+
+- 🔧 **rhwp가 한 일 (핵심 엔진)** — [Edward Kim](https://github.com/edwardkim) 님의 [**rhwp**](https://github.com/edwardkim/rhwp)는 닫힌 한글 포맷(HWP 5.0 binary, HWPX/OWPML)을 전부 역공학으로 풀어 Rust + WebAssembly로 구현한 오픈소스 엔진입니다. 파싱, 표·이미지·수식·머리말 추출, SVG 렌더링, 한컴 호환 Field API — 이 모든 핵심 능력은 rhwp 가 제공합니다. **rhwp 가 없으면 이 프로젝트도 없습니다.**
+
+- 🤝 **`hwp-mcp` 가 한 일 (에이전트 어댑터)** — `@rhwp/core` 위에 얹은 얇은 MCP 서버 layer. 우리가 추가한 것은:
+  - `read_hwp`, `fill_hwp_template`, `replace_hwp_text` 같은 **에이전트 친화적 도구 시그니처** — Claude/Cursor 같은 LLM이 자연어로 호출할 수 있게
+  - 본문·표·이미지·머리말·꼬리말·각주·수식을 한 번에 dump 하는 **시나리오 중심 traversal walker**
+  - 표 셀 병합 자동 처리, footnote/equation 자동 합본 같은 **사용 편의 layer**
+  - rhwp 0.7.7 의 `exportHwpx` 라운드트립 한계를 우회하기 위한 **`.hwpx` ZIP-level mutation layer** (실제 쓰기를 가능하게 하는 핵심)
+  - npm `hwp-mcp` 패키지 (한 줄 설치) + Node.js WASM 부트스트랩
+
+요약: **AI가 한글 문서를 진짜로 읽고 쓸 수 있게 해주는 어댑터**입니다. 모든 오픈 한글 능력에 대한 감사는 rhwp 프로젝트에 보내주세요 🙏
 
 ---
 
@@ -39,7 +52,7 @@ Node.js 20 이상 필요.
 
 ## 도구 목록
 
-`hwp-mcp` v0.2가 노출하는 10개 MCP 도구입니다. 모두 `.hwp` 와 `.hwpx` 둘 다 지원하며, 쓰기 도구만 `.hwpx` 전용입니다.
+`hwp-mcp` v0.2가 노출하는 14개 MCP 도구입니다. 읽기·렌더는 `.hwp`/`.hwpx` 모두 지원하며, 쓰기 도구는 `.hwpx` 전용입니다.
 
 | # | 도구 | 카테고리 | `.hwp` | `.hwpx` | 설명 |
 |---|------|---------|:---:|:---:|------|
@@ -48,11 +61,15 @@ Node.js 20 이상 필요.
 | 3 | `read_hwp_tables` | 읽기 | ✅ | ✅ | 표를 GitHub 마크다운으로 (셀 병합 처리) |
 | 4 | `list_hwp_images` | 읽기 | ✅ | ✅ | 임베디드 이미지 목록 (mime, 바이트) |
 | 5 | `extract_hwp_images` | 읽기 | ✅ | ✅ | 이미지를 디스크로 추출 |
-| 6 | `render_hwp_page` | 시각 렌더 | ✅ | ✅ | 특정 페이지 → SVG (인라인 또는 파일 저장) |
-| 7 | `render_hwp_all_pages` | 시각 렌더 | ✅ | ✅ | 전체 페이지 SVG 일괄 추출 |
-| 8 | `replace_hwp_text` | 쓰기 | ❌ | ✅ | 특정 문자열 찾아 바꾸기 |
-| 9 | `fill_hwp_template` | 쓰기 | ❌ | ✅ | `{{이름}}` · `{{회사}}` 등 여러 자리표시자 한 번에 |
-| 10 | `create_hwpx_document` | 쓰기 | – | ✅ | 텍스트로 새 `.hwpx` 만들기 |
+| 6 | `get_hwp_info` | 메타 | ✅ | ✅ | 버전·페이지 수·글꼴·표/이미지/각주/수식 통계 |
+| 7 | `list_hwp_fields` | 메타 | ✅ | ✅ | 한컴 필드 목록 (fill 전 미리 확인) |
+| 8 | `list_hwp_bindata` | 메타 | – | ✅ | `.hwpx` BinData/ 엔트리 목록 |
+| 9 | `render_hwp_page` | 시각 렌더 | ✅ | ✅ | 특정 페이지 → SVG (인라인 또는 파일) |
+| 10 | `render_hwp_all_pages` | 시각 렌더 | ✅ | ✅ | 전체 페이지 SVG 일괄 추출 |
+| 11 | `replace_hwp_text` | 쓰기 | ❌ | ✅ | 특정 문자열 찾아 바꾸기 |
+| 12 | `fill_hwp_template` | 쓰기 | ❌ | ✅ | `{{이름}}` · `{{회사}}` 등 다중 자리표시자 |
+| 13 | `replace_hwp_image` | 쓰기 | ❌ | ✅ | 임베디드 이미지를 다른 파일로 교체 |
+| 14 | `create_hwpx_document` | 쓰기 | – | ✅ | 텍스트로 새 `.hwpx` 만들기 |
 
 ## 컨텐츠 추출 매트릭스
 
@@ -184,9 +201,11 @@ AI: 9/9 페이지 SVG 저장 (rendered 9/9 pages):
 - **쓰기 (.hwpx)**: ZIP 아카이브 안의 `Contents/section*.xml` 을 직접 파싱해서 `<hp:t>` 텍스트 노드를 search/replace 한 뒤 다시 패키징합니다 (mimetype은 spec대로 stored). rhwp의 `exportHwpx()` 라운드트립 이슈를 우회하기 위한 layer입니다.
 - **새 문서**: rhwp의 `createBlankDocument` + `insertText` 로 작성한 뒤 `exportHwpx` 로 저장합니다 (텍스트 라운드트립이 안정).
 
-## rhwp에 감사드립니다
+## 크레딧
 
-`hwp-mcp`이 가능한 건 [**rhwp**](https://github.com/edwardkim/rhwp)가 한글 포맷을 전부 역공학으로 풀어주셨기 때문입니다. 파싱·렌더링·필드 핸들링·이미지 추출 — 핵심 능력은 모두 rhwp의 것입니다. 가능하시다면 그 프로젝트도 함께 응원해 주세요: <https://github.com/edwardkim/rhwp>
+**rhwp** ([@edwardkim](https://github.com/edwardkim)) — 핵심 파서·렌더러·Field API. 닫힌 한글 포맷을 오픈한 그 모든 작업이 이 프로젝트의 토대입니다. 가능하시다면 그 프로젝트도 함께 응원해 주세요: <https://github.com/edwardkim/rhwp>
+
+**hwp-mcp** — rhwp 위에 AI 에이전트가 자연어로 호출할 수 있게 도구화한 얇은 MCP 어댑터. 핵심 능력은 모두 rhwp 의 것이고, 우리는 그것을 LLM 에 연결한 wiring 입니다.
 
 ## English
 
