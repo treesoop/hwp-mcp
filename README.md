@@ -50,6 +50,50 @@ claude mcp add hwp-mcp -- npx -y hwp-mcp
 
 Node.js 20 이상 필요.
 
+### 설치 확인
+
+```bash
+claude mcp list | grep hwp-mcp
+# hwp-mcp: npx -y hwp-mcp  - ✓ Connected
+```
+
+`✓ Connected` 가 뜨면 끝. AI 한테 "내 문서.hwpx 읽어줘" 시키면 됨.
+
+### 안 되면?
+
+**증상: `✗ Failed to connect`**
+
+`v0.2.0` 에서 bin symlink 통한 실행 시 `isMain` 가드가 무조건 false 가 되어 서버가 조용히 종료되는 버그가 있었습니다 ([fix in v0.2.1](https://github.com/treesoop/hwp-mcp/commit/2198c63)).
+
+**해결: `v0.2.1` 이상으로 업그레이드**
+
+```bash
+# npx 캐시 무효화 + 재등록
+claude mcp remove hwp-mcp
+claude mcp add hwp-mcp -- npx -y hwp-mcp@latest
+claude mcp list | grep hwp-mcp
+```
+
+설정 파일 방식(Claude Desktop/Cursor)이면 `args` 를 `["-y", "hwp-mcp@latest"]` 로:
+
+```json
+{
+  "mcpServers": {
+    "hwp-mcp": {
+      "command": "npx",
+      "args": ["-y", "hwp-mcp@latest"]
+    }
+  }
+}
+```
+
+**v0.2.1 publish 전 임시 우회**: `node` 로 직접 호출
+
+```bash
+npm i -g hwp-mcp
+claude mcp add hwp-mcp -- node "$(npm root -g)/hwp-mcp/dist/server.js"
+```
+
 ---
 
 ## 도구 목록
