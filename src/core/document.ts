@@ -440,3 +440,145 @@ export function tableToMarkdown(t: TableData): string {
   }
   return lines.join("\n");
 }
+
+export type FlowBlock =
+  | { kind: "para"; text: string; headingLevel?: number }
+  | { kind: "table"; table: TableData }
+  | { kind: "image"; ref: ImageRef }
+  | { kind: "equation"; script: string };
+
+const HEADING_RE = /(?:개요|Outline)\s*([1-7])/i;
+
+function headingLevelAt(doc: HwpDocument, s: number, p: number): number | undefined {
+  let raw: string;
+  try {
+    raw = doc.getStyleAt(s, p);
+  } catch {
+    return undefined;
+  }
+  if (!raw) return undefined;
+  let name = "";
+  try {
+    const parsed = JSON.parse(raw) as { name?: string };
+    name = parsed.name ?? "";
+  } catch {
+    name = raw;
+  }
+  const m = HEADING_RE.exec(name);
+  if (!m) return undefined;
+  return Math.min(Number(m[1]), 6);
+}
+
+function tableAt(doc: HwpDocument, s: number, p: number, ci: number): TableData | undefined {
+  let dimsJson: string;
+  try {
+    dimsJson = doc.getTableDimensions(s, p, ci);
+  } catch {
+    return undefined;
+  }
+  if (!dimsJson || dimsJson === "null") return undefined;
+  let dims: TableDims;
+  try {
+    dims = JSON.parse(dimsJson);
+  } catch {
+    return undefined;
+  }
+  const rows = Number(dims.rowCount ?? dims.rows ?? dims.row_count ?? 0);
+  const cols = Number(dims.colCount ?? dims.cols ?? dims.col_count ?? 0);
+  const cellCount = Number(dims.cellCount ?? dims.cell_count ?? rows * cols);
+  if (rows === 0 || cols === 0) return undefined;
+  const cells: string[][] = Array.from({ length: rows }, () => Array(cols).fill(""));
+  for (let cellIdx = 0; cellIdx < cellCount; cellIdx++) {
+    let row = 0,
+      col = 0;
+    try {
+      const info = JSON.parse(doc.getCellInfo(s, p, ci, cellIdx));
+      row = Number(info.row ?? info.r ?? 0);
+      col = Number(info.col ?? info.c ?? 0);
+    } catch {
+      row = Math.floor(cellIdx / cols);
+      col = cellIdx % cols;
+    }
+    if (row >= rows || col >= cols) continue;
+    cells[row][col] = readCellText(doc, s, p, ci, cellIdx);
+  }
+  return { rows, cols, cells };
+}
+
+function imageAt(doc: HwpDocument, s: number, p: number, ci: number): ImageRef | undefined {
+  let mime: string;
+  try {
+    mime = doc.getControlImageMime(s, p, ci);
+  } catch {
+    return undefined;
+  }
+  if (!mime) return undefined;
+  let bytes: Uint8Array;
+  try {
+    bytes = doc.getControlImageData(s, p, ci);
+  } catch {
+    return undefined;
+  }
+  return {
+    section: s,
+    paragraph: p,
+    controlIdx: ci,
+    mime,
+    byteLength: bytes.byteLength,
+    ext: extFromMime(mime),
+  };
+}
+
+function equationAt(doc: HwpDocument, s: number, p: number, ci: number): string | undefined {
+  let raw: string;
+  try {
+    raw = doc.getEquationProperties(s, p, ci, 0, 0);
+  } catch {
+    return undefined;
+  }
+  if (!raw || !raw.includes("script")) return undefined;
+  try {
+    const parsed = JSON.parse(raw) as { script?: string };
+    return parsed.script || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+export function walkDocumentFlow(doc: HwpDocument): FlowBlock[] {
+  const blocks: FlowBlock[] = [];
+  const sectionCount = doc.getSectionCount();
+  for (let s = 0; s < sectionCount; s++) {
+    const paraCount = doc.getParagraphCount(s);
+    for (let p = 0; p < paraCount; p++) {
+      const len = doc.getParagraphLength(s, p);
+      const text = len > 0 ? doc.getTextRange(s, p, 0, len) : "";
+      const headingLevel = headingLevelAt(doc, s, p);
+      blocks.push(
+        headingLevel !== undefined
+          ? { kind: "para", text, headingLevel }
+          : { kind: "para", text }
+      );
+      const n = controlCount(doc, s, p);
+      for (let ci = 0; ci < n; ci++) {
+        // Equation controls also answer getTableDimensions as a 1x1 table,
+        // so equations must be probed before tables.
+        const script = equationAt(doc, s, p, ci);
+        if (script) {
+          blocks.push({ kind: "equation", script });
+          continue;
+        }
+        const table = tableAt(doc, s, p, ci);
+        if (table) {
+          blocks.push({ kind: "table", table });
+          continue;
+        }
+        const img = imageAt(doc, s, p, ci);
+        if (img) {
+          blocks.push({ kind: "image", ref: img });
+        }
+      }
+    }
+  }
+  return blocks;
+}
