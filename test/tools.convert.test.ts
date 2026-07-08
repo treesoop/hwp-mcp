@@ -1,5 +1,8 @@
 import { describe, it, expect } from "vitest";
-import { flowToMarkdown } from "../src/tools/convert.js";
+import { existsSync, mkdtempSync, readFileSync, readdirSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { convertHwpMarkdown, flowToMarkdown } from "../src/tools/convert.js";
 import type { FlowBlock } from "../src/core/document.js";
 
 const placeholder = () => "[image: png, 67B]";
@@ -69,5 +72,61 @@ describe("flowToMarkdown", () => {
       { imageRenderer: placeholder }
     );
     expect(md).toBe("본문\n\n---\n\n[^1]: 첫 각주\n[^2]: 둘째 각주");
+  });
+});
+
+describe("convertHwpMarkdown", () => {
+  it("string mode: returns markdown with table in place and image placeholder", async () => {
+    const md = await convertHwpMarkdown({ file_path: "test/fixtures/simple.hwp" });
+    const textPos = md.indexOf("안녕하세요 hwp-mcp.");
+    const tablePos = md.indexOf("| 이름 | 회사 |");
+    const imgPos = md.search(/\[image: png, \d+(\.\d+)?(B|KB)\]/);
+    expect(textPos).toBeGreaterThanOrEqual(0);
+    expect(tablePos).toBeGreaterThan(textPos);
+    expect(imgPos).toBeGreaterThan(tablePos);
+    expect(md).toContain("| 남대현 | 포텐랩 |");
+  });
+
+  it("string mode: renders equations inline for with_equation.hwp", async () => {
+    const md = await convertHwpMarkdown({ file_path: "test/fixtures/with_equation.hwp" });
+    expect(md).toMatch(/\$.+\$/);
+  });
+
+  it("file mode: writes md + extracts images with relative links", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "hwpmd-"));
+    const out = join(dir, "simple.md");
+    const result = await convertHwpMarkdown({
+      file_path: "test/fixtures/simple.hwp",
+      output_path: out,
+    });
+    expect(result).toContain(out);
+    const md = readFileSync(out, "utf8");
+    expect(md).toContain("![img_001](simple_images/img_001.png)");
+    expect(existsSync(join(dir, "simple_images", "img_001.png"))).toBe(true);
+    expect(readdirSync(join(dir, "simple_images"))).toEqual(["img_001.png"]);
+  });
+
+  it("file mode: honors custom image_dir with correct relative link", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "hwpmd-"));
+    const out = join(dir, "doc.md");
+    const imgDir = join(dir, "assets");
+    await convertHwpMarkdown({
+      file_path: "test/fixtures/simple.hwp",
+      output_path: out,
+      image_dir: imgDir,
+    });
+    const md = readFileSync(out, "utf8");
+    expect(md).toContain("![img_001](assets/img_001.png)");
+    expect(existsSync(join(imgDir, "img_001.png"))).toBe(true);
+  });
+
+  it("returns Korean error for missing file", async () => {
+    const md = await convertHwpMarkdown({ file_path: "/no/such.hwp" });
+    expect(md).toMatch(/파일을 찾을 수 없습니다|not found/);
+  });
+
+  it("handles empty document", async () => {
+    const md = await convertHwpMarkdown({ file_path: "test/fixtures/empty.hwp" });
+    expect(md).toMatch(/비어|empty/);
   });
 });
