@@ -115,15 +115,16 @@ claude mcp list | grep hwp-mcp   # ✓ Connected
 
 ## 도구 목록
 
-`hwp-mcp` v0.2가 노출하는 **34개 MCP 도구**입니다. 읽기·렌더는 `.hwp`/`.hwpx` 모두 지원, 쓰기는 `.hwpx` 전용입니다.
+`hwp-mcp` v0.2가 노출하는 **35개 MCP 도구**입니다. 읽기·렌더는 `.hwp`/`.hwpx` 모두 지원, 쓰기는 `.hwpx` 전용입니다.
 
-### 읽기 (5)
+### 읽기 / 변환 (6)
 
 | 도구 | `.hwp` | `.hwpx` | 설명 |
 |------|:---:|:---:|------|
 | `read_hwp` | ✅ | ✅ | 본문 + 표(마크다운) + 이미지 목록 한 번에 |
 | `read_hwp_text` | ✅ | ✅ | 본문 + 머리말 + 꼬리말 + 각주 + 수식 통합 텍스트 |
 | `read_hwp_tables` | ✅ | ✅ | 표를 GitHub 마크다운으로 (셀 병합 처리) |
+| `convert_hwp_markdown` | ✅ | ✅ | 문서 → Markdown 변환 (문서 순서 유지, 표 GFM 제자리, 이미지 추출+상대링크, 수식 `$…$`, 각주 문서 끝) |
 | `list_hwp_images` | ✅ | ✅ | 임베디드 이미지 목록 (mime, 바이트) |
 | `extract_hwp_images` | ✅ | ✅ | 이미지를 디스크로 추출 |
 

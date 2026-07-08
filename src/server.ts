@@ -36,6 +36,7 @@ import {
   setHwpCellText,
 } from "./tools/edit.js";
 import { renderHwpHtml, renderHwpEquationSvg } from "./tools/render-extra.js";
+import { convertHwpMarkdown } from "./tools/convert.js";
 
 const TOOLS = [
   {
@@ -65,6 +66,20 @@ const TOOLS = [
     inputSchema: {
       type: "object",
       properties: { file_path: { type: "string" } },
+      required: ["file_path"],
+    },
+  },
+  {
+    name: "convert_hwp_markdown",
+    description:
+      "Convert an HWP/HWPX document to Markdown preserving document flow order: tables as GFM in place, images extracted with relative links, equations inline ($…$), footnotes at end. If output_path is omitted, the Markdown string is returned inline with image placeholders. Args: file_path, output_path (optional .md path), image_dir (optional, default <md name>_images/ next to output).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        file_path: { type: "string" },
+        output_path: { type: "string" },
+        image_dir: { type: "string" },
+      },
       required: ["file_path"],
     },
   },
@@ -512,6 +527,7 @@ const HANDLERS: Record<string, (args: any) => Promise<string>> = {
   read_hwp: readHwp,
   read_hwp_text: readHwpText,
   read_hwp_tables: readHwpTables,
+  convert_hwp_markdown: convertHwpMarkdown,
   list_hwp_images: listHwpImages,
   extract_hwp_images: extractHwpImages,
   replace_hwp_text: replaceHwpText,
