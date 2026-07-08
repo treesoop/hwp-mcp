@@ -115,7 +115,7 @@ claude mcp list | grep hwp-mcp   # ✓ Connected
 
 ## 도구 목록
 
-`hwp-mcp` v0.2가 노출하는 **35개 MCP 도구**입니다. 읽기·렌더는 `.hwp`/`.hwpx` 모두 지원, 쓰기는 `.hwpx` 전용입니다.
+`hwp-mcp` v0.3이 노출하는 **35개 MCP 도구**입니다. 읽기·렌더는 `.hwp`/`.hwpx` 모두 지원, 쓰기는 `.hwpx` 전용입니다.
 
 ### 읽기 / 변환 (6)
 
