@@ -7,8 +7,11 @@
 [![Built on rhwp](https://img.shields.io/badge/built%20on-rhwp-blue)](https://github.com/edwardkim/rhwp)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![GitHub release](https://img.shields.io/github/v/release/treesoop/hwp-mcp)](https://github.com/treesoop/hwp-mcp/releases/latest)
+[![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-brightgreen)](#설치)
 
 `hwp-mcp`은 한컴오피스 문서를 AI 에이전트가 직접 다루도록 해주는 MCP(Model Context Protocol) 서버입니다. **읽기뿐 아니라 텍스트 수정, 템플릿 채우기, 새 문서 생성까지 가능합니다.**
+
+🍎 **맥에서도 됩니다.** 기존 HWP 자동화 도구 대부분은 한컴오피스 COM API 기반이라 Windows 전용이지만, `hwp-mcp`는 WebAssembly 엔진이라 **macOS(Apple Silicon 포함) · Windows · Linux 어디서든 한컴오피스 설치 없이** 동작합니다.
 
 ## 어떤 프로젝트인가요?
 
@@ -48,7 +51,7 @@ claude mcp add hwp-mcp -- npx -y hwp-mcp
 }
 ```
 
-Node.js 20 이상 필요. **macOS · Windows · Linux 모두 지원** — 엔진이 WebAssembly 기반이라 한컴오피스 설치 없이 OS 무관하게 동작합니다.
+Node.js 20 이상 필요. **macOS · Windows · Linux 모두 지원** — 엔진이 WebAssembly 기반이라 한컴오피스 설치 없이 OS 무관하게 동작합니다. pywin32·COM 자동화처럼 Windows에 묶이지 않아 **맥북에서도 위 한 줄로 끝**입니다.
 
 ### 설치 확인
 
@@ -346,11 +349,35 @@ AI: 9/9 페이지 SVG 저장 (rendered 9/9 pages):
 | 메타 / 필드 | ~85% |
 | **전체 가중** | **~85%** |
 
-남은 v0.3 큰 항목: `.hwp` 바이너리 쓰기, 차트, 스타일 정의·적용, 텍스트박스 본문 추출, hwpctl 30 Actions(의도적 제외).
+남은 큰 항목: `.hwp` 바이너리 쓰기, 차트, 스타일 정의·적용, 텍스트박스 본문 추출, hwpctl 30 Actions(의도적 제외).
+
+## 업데이트 노트
+
+### v0.3.0 (2026-07-08)
+
+- ✨ **`convert_hwp_markdown` 신규** — HWP/HWPX → Markdown 변환. 문서 흐름 순서를 그대로 유지합니다(기존 `read_hwp`는 본문 뒤에 표를 몰아서 출력).
+  - 표는 제자리에 GitHub 마크다운으로
+  - 이미지는 `<문서명>_images/`로 추출 + 상대링크 (`output_path` 생략 시 markdown 문자열만 반환)
+  - 수식은 `$…$` 인라인, 각주는 문서 끝 `[^N]:` 목록
+  - 개요 1~7 스타일 문단은 `#`~`######` heading으로 (best-effort)
+- 내부: 순서 보존 traversal walker `walkDocumentFlow` 추가 — 수식 컨트롤이 1x1 표로도 응답하는 rhwp 특성 처리
+
+### v0.2.1 (2026-05-26)
+
+- 🐛 bin-symlink 버그 수정 — v0.2.0에서 `npx hwp-mcp` 실행 시 서버가 조용히 종료되던 문제
+
+### v0.2.0 (2026-04-29)
+
+- Python 구현 폐기, **rhwp(Rust + WASM) 기반 전면 재작성** — 한컴오피스·OS 의존성 제거
+- 읽기·렌더 `.hwp`/`.hwpx` 지원, `.hwpx` 쓰기(치환·템플릿·신규 생성·구조 편집) 34개 도구
+
+### v0.1 (2026-03-31)
+
+- 최초 릴리스 (`hangul-mcp` → `hwp-mcp` 개명, Python 기반)
 
 ## 릴리스 / 이슈
 
-- 변경 이력: <https://github.com/treesoop/hwp-mcp/releases>
+- 변경 이력: 위 [업데이트 노트](#업데이트-노트) 및 <https://github.com/treesoop/hwp-mcp/releases>
 - 버그 신고 · 기능 제안: <https://github.com/treesoop/hwp-mcp/issues>
 - npm 패키지: <https://www.npmjs.com/package/hwp-mcp>
 
@@ -358,7 +385,7 @@ AI: 9/9 페이지 SVG 저장 (rendered 9/9 pages):
 
 ## English
 
-`hwp-mcp` is an MCP server for reading and writing Korean Hangul (.hwp / .hwpx) documents from Claude / Cursor / ChatGPT and any MCP-compatible client. **Read works for both formats; write currently supports .hwpx (find/replace, template fill, create new doc) — .hwp write is planned for v0.3.** Runs on macOS, Windows, and Linux (WebAssembly-based — no Hancom Office install required). Built on top of [rhwp](https://github.com/edwardkim/rhwp) (Rust + WebAssembly HWP engine by Edward Kim, MIT).
+`hwp-mcp` is an MCP server for reading and writing Korean Hangul (.hwp / .hwpx) documents from Claude / Cursor / ChatGPT and any MCP-compatible client. **Read and Markdown conversion work for both formats; write currently supports .hwpx (find/replace, template fill, create new doc) — .hwp write is planned.** Runs on macOS (including Apple Silicon), Windows, and Linux — WebAssembly-based, no Hancom Office install required, no Windows-only COM automation. Built on top of [rhwp](https://github.com/edwardkim/rhwp) (Rust + WebAssembly HWP engine by Edward Kim, MIT).
 
 ```bash
 claude mcp add hwp-mcp -- npx -y hwp-mcp
