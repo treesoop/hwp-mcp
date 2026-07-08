@@ -1,6 +1,6 @@
 {
   "name": "hwp-mcp",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "MCP server for reading and writing HWP/HWPX (Korean Hangul) documents — built on rhwp.",
   "type": "module",
   "license": "MIT",
