@@ -13,6 +13,8 @@
 
 🍎 **맥에서도 됩니다.** 기존 HWP 자동화 도구 대부분은 한컴오피스 COM API 기반이라 Windows 전용이지만, `hwp-mcp`는 WebAssembly 엔진이라 **macOS(Apple Silicon 포함) · Windows · Linux 어디서든 한컴오피스 설치 없이** 동작합니다.
 
+🏢 **회사 전체가 같이 쓰려면:** 같은 팀이 만든 [**Trina AX**](https://github.com/trina-app/trina-ax)는 회사 서버에서 Claude Code를 돌리는 오픈소스 업무 공간입니다. 팀 폴더의 HWP/HWPX·PDF·Office 문서와 팀 스킬, MCP 서버를 직원 모두가 각자 폴더 권한 안에서 함께 씁니다.
+
 ## 어떤 프로젝트인가요?
 
 이 프로젝트는 두 부분으로 나뉩니다.
@@ -393,6 +395,8 @@ claude mcp list | grep hwp-mcp   # ✓ Connected
 ```
 
 **Not seeing `✓ Connected`?** Upgrade to v0.2.1+ (`npx -y hwp-mcp@latest`) — v0.2.0 had a bin-symlink bug that made the server exit silently. Tools not appearing in your AI client? Restart the session; MCP tools load at startup.
+
+**Rolling it out to a whole team?** [Trina AX](https://github.com/trina-app/trina-ax), from the same team, is an open-source, self-hosted workspace that runs Claude Code on your company's server. Everyone shares the company files (HWP/HWPX, PDF, Office), team skills and MCP servers, each within their own folder permissions.
 
 ## License
 
