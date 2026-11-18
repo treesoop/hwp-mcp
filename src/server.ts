@@ -37,6 +37,22 @@ import {
 } from "./tools/edit.js";
 import { renderHwpHtml, renderHwpEquationSvg } from "./tools/render-extra.js";
 import { convertHwpMarkdown } from "./tools/convert.js";
+import { RhwpProxy } from "./rhwp/proxy.js";
+import { profileFromEnv, selectTools } from "./rhwp/profile.js";
+import { RHWP_VERSION } from "./rhwp/bin.js";
+
+/** package.json 과 어긋나면 사용자가 버전을 두 군데서 다르게 본다.
+ *  2026-11-19 에 실제로 어긋나 있었다 (서버 0.2.0 대 패키지 0.3.0). */
+const SERVER_VERSION = "0.4.0";
+
+/** rhwp 가 늦게 붙으므로, 엔진 상태를 물어볼 창구를 로컬 도구로 하나 둔다. */
+const ENGINE_STATUS_TOOL = {
+  name: "hwp_engine_status",
+  description:
+    "Report hwp-mcp engine status: local tool count, rhwp binary version/source, "
+    + "how many rhwp tools are available vs exposed, active profile, and any error. No args.",
+  inputSchema: { type: "object", properties: {}, required: [] as string[] },
+};
 
 const TOOLS = [
   {
@@ -521,6 +537,7 @@ const TOOLS = [
       required: ["output_path", "content"],
     },
   },
+  ENGINE_STATUS_TOOL,
 ];
 
 const HANDLERS: Record<string, (args: any) => Promise<string>> = {
@@ -561,24 +578,86 @@ const HANDLERS: Record<string, (args: any) => Promise<string>> = {
   render_hwp_equation_svg: renderHwpEquationSvg,
 };
 
-export function buildServer(): Server {
-  const server = new Server(
-    { name: "hwp-mcp", version: "0.2.0" },
-    { capabilities: { tools: {} } }
-  );
+/** 서버 기동을 막지 않고 rhwp 에 붙는다 — 첫 실행의 30MB 다운로드가
+ *  MCP 호스트의 기동 타임아웃(보통 30초)을 때리지 않게 하려는 것이다.
+ *  준비되면 `notifications/tools/list_changed` 로 호스트에게 목록을 다시 받게 한다. */
+const toStderr = (s: string) => process.stderr.write(`[hwp-mcp] ${s}\n`);
 
-  server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools: TOOLS }));
+export function buildServer(proxy: RhwpProxy = new RhwpProxy(toStderr)): Server {
+  const server = new Server(
+    { name: "hwp-mcp", version: SERVER_VERSION },
+    // listChanged: rhwp 도구는 나중에 합류한다 — 이 표지가 없으면 호스트가 다시 묻지 않는다.
+    { capabilities: { tools: { listChanged: true } } }
+  );
+  const profile = profileFromEnv();
+
+  server.setRequestHandler(ListToolsRequestSchema, async () => ({
+    tools: [...TOOLS, ...selectTools(proxy.listedTools(), profile)],
+  }));
 
   server.setRequestHandler(CallToolRequestSchema, async (req) => {
-    const handler = HANDLERS[req.params.name];
-    if (!handler) {
+    const name = req.params.name;
+    const args = (req.params.arguments ?? {}) as Record<string, unknown>;
+
+    if (name === "hwp_engine_status") {
+      const info = proxy.info();
       return {
-        content: [{ type: "text", text: `Unknown tool: ${req.params.name}` }],
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(
+              {
+                hwpMcp: SERVER_VERSION,
+                profile,
+                localTools: TOOLS.length,
+                rhwp: {
+                  state: proxy.state,
+                  expectedVersion: RHWP_VERSION,
+                  ...(info ?? {}),
+                  toolsAvailable: proxy.listedTools().length,
+                  toolsExposed: selectTools(proxy.listedTools(), profile).length,
+                  error: proxy.lastError,
+                },
+                hint:
+                  profile === "curated"
+                    ? "HWP_MCP_PROFILE=full 로 두면 rhwp 도구를 전부 노출합니다."
+                    : "full 프로필입니다 — rhwp 가 주는 도구를 전부 노출합니다.",
+              },
+              null,
+              2
+            ),
+          },
+        ],
+      };
+    }
+
+    const handler = HANDLERS[name];
+    if (!handler) {
+      // 로컬에 없으면 rhwp 로 넘긴다. 아직 안 떠 있으면 여기서 기다린다 —
+      // 호출은 기동과 달리 늦어도 되고, 조용히 Unknown tool 로 끝내면 안 된다.
+      try {
+        await proxy.start();
+      } catch {
+        /* 아래에서 상태와 함께 보고한다 */
+      }
+      if (proxy.has(name)) {
+        try {
+          return { content: [{ type: "text", text: await proxy.call(name, args) }] };
+        } catch (e) {
+          return { content: [{ type: "text", text: `오류 (error): ${(e as Error).message}` }], isError: true };
+        }
+      }
+      const why =
+        proxy.state === "failed"
+          ? ` rhwp 를 쓸 수 없습니다: ${proxy.lastError}. hwp_engine_status 로 확인하세요.`
+          : "";
+      return {
+        content: [{ type: "text", text: `Unknown tool: ${name}.${why}` }],
         isError: true,
       };
     }
     try {
-      const text = await handler(req.params.arguments ?? {});
+      const text = await handler(args);
       return { content: [{ type: "text", text }] };
     } catch (e) {
       return {
@@ -592,9 +671,17 @@ export function buildServer(): Server {
 }
 
 export async function runServer(): Promise<void> {
-  const server = buildServer();
+  const proxy = new RhwpProxy(toStderr);
+  const server = buildServer(proxy);
   const transport = new StdioServerTransport();
   await server.connect(transport);
+  // 연결 **뒤에** 띄운다. 실패해도 로컬 도구 24개는 그대로 쓸 수 있어야 한다.
+  proxy
+    .start()
+    .then(() => server.sendToolListChanged())
+    .catch(() => {
+      /* 실패 사유는 proxy 가 stderr 로 이미 남겼다 — 서버는 계속 돈다 */
+    });
 }
 
 // Resolve argv[1] through realpath so we correctly detect "run as main" when
