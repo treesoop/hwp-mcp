@@ -1,7 +1,7 @@
 {
   "name": "hwp-mcp",
-  "version": "0.3.0",
-  "description": "MCP server for reading and writing HWP/HWPX (Korean Hangul) documents — built on rhwp.",
+  "version": "0.4.0",
+  "description": "MCP server for reading and writing HWP/HWPX (Korean Hangul) documents — full rhwp tool surface (184 tools), built on rhwp.",
   "type": "module",
   "license": "MIT",
   "author": "Treesoop <official@treesoop.com>",
