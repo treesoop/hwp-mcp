@@ -9,7 +9,7 @@
 [![GitHub release](https://img.shields.io/github/v/release/treesoop/hwp-mcp)](https://github.com/treesoop/hwp-mcp/releases/latest)
 [![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-brightgreen)](#설치)
 
-`hwp-mcp`은 한컴오피스 문서를 AI 에이전트가 직접 다루도록 해주는 MCP(Model Context Protocol) 서버입니다. **읽기뿐 아니라 텍스트 수정, 템플릿 채우기, 새 문서 생성까지 가능합니다.** v0.4부터 [rhwp](https://github.com/edwardkim/rhwp) 가 주는 기능을 **전부**(도구 184개) 쓸 수 있고, `.hwp` 를 `.hwpx` 로 바꾸지 않고 **직접 수정**할 수 있습니다.
+`hwp-mcp`은 한컴오피스 문서를 AI 에이전트가 직접 다루도록 해주는 MCP(Model Context Protocol) 서버입니다. **읽기뿐 아니라 텍스트 수정, 템플릿 채우기, 새 문서 생성까지 가능합니다.** v0.4부터 [rhwp](https://github.com/edwardkim/rhwp) 가 주는 기능을 **전부**(rhwp 0.9.1 기준 도구 184개) 쓸 수 있고, `.hwp` 를 `.hwpx` 로 바꾸지 않고 **직접 수정**할 수 있습니다.
 
 🍎 **맥에서도 됩니다.** 기존 HWP 자동화 도구 대부분은 한컴오피스 COM API 기반이라 Windows 전용이지만, `hwp-mcp`는 WebAssembly 엔진이라 **macOS(Apple Silicon 포함) · Windows · Linux 어디서든 한컴오피스 설치 없이** 동작합니다.
 
@@ -50,13 +50,13 @@ hwp-mcp 를 설치해 줘. 한글(.hwp/.hwpx) 문서를 읽고 쓰는 MCP 서버
 
 3. 엔진 상태를 hwp_engine_status 도구로 확인해 줘.
    rhwp 바이너리를 처음 한 번 받는다(약 30MB). state 가 ready 가 되면 끝이야.
-   받는 동안에는 로컬 도구 35개만 보이고, 끝나면 도구 목록이 자동으로 늘어나.
+   받는 동안에는 로컬 도구 36개만 보이고, 끝나면 도구 목록이 자동으로 늘어나.
 
 4. 마지막으로 아무 .hwp 나 .hwpx 파일 하나를 read_hwp 로 읽어서
    첫 두 줄만 보여 줘. 파일이 없으면 "파일 경로를 알려 달라"고만 말해.
 
 참고: Node.js 20 이상이 필요하고 macOS·Windows·Linux 모두 된다.
-한컴오피스는 설치하지 않아도 돼. 도구를 전부(184개) 열고 싶으면
+한컴오피스는 설치하지 않아도 돼. 도구를 전부(220개) 열고 싶으면
 환경변수 HWP_MCP_PROFILE=full 을 설정하면 돼.
 ```
 
@@ -150,8 +150,8 @@ v0.4부터 `hwp-mcp` 는 **rhwp 가 주는 기능을 전부** 쓸 수 있습니�
 
 | 층 | 무엇 | 개수 | 엔진 |
 |---|---|---|---|
-| 로컬 도구 | `read_hwp` · `fill_hwp_template` 처럼 에이전트가 부르기 쉬운 이름 | **35** | `@rhwp/core` (WASM) |
-| rhwp 도구 | rhwp 가 자체 MCP 서버로 노출하는 전부 | **184** | rhwp 바이너리 |
+| 로컬 도구 | `read_hwp` · `fill_hwp_template` 처럼 에이전트가 부르기 쉬운 이름 | **36** | `@rhwp/core` (WASM) |
+| rhwp 도구 | rhwp 가 자체 MCP 서버로 노출하는 전부 | **184** (0.9.1 기준) | rhwp 바이너리 |
 
 **도구 목록을 코드에 적어 두지 않습니다.** 서버가 켜질 때 rhwp 에게 `tools/list` 를
 물어 그대로 받아 옵니다 — rhwp 가 올라가면 새 도구도 코드 수정 없이 따라옵니다.
@@ -159,10 +159,10 @@ v0.4부터 `hwp-mcp` 는 **rhwp 가 주는 기능을 전부** 쓸 수 있습니�
 ### 프로필 — 기본은 큐레이션입니다
 
 184개를 한꺼번에 열면 AI 의 도구 목록이 매 요청마다 컨텍스트를 먹고, 엉뚱한 도구를
-고를 확률도 올라갑니다. 그래서 기본값은 **로컬 35 + 엄선한 rhwp 15 = 50개**입니다.
+고를 확률도 올라갑니다. 그래서 기본값은 **로컬 36 + 엄선한 rhwp 15 = 51개**입니다.
 
 ```bash
-# 전부(로컬 35 + rhwp 184 = 219개) 열기
+# 전부(로컬 36 + rhwp 184 = 220개) 열기
 HWP_MCP_PROFILE=full
 ```
 
@@ -189,16 +189,17 @@ HWP_MCP_PROFILE=full
 1. `HWP_MCP_RHWP_BIN` 이 있으면 그 경로를 씁니다.
 2. 캐시(`~/.cache/hwp-mcp/rhwp-<버전>/`)에 있으면 그걸 씁니다.
 3. `PATH` 에 `rhwp` 가 있으면 **그걸 씁니다** (받지 않습니다).
+   버전이 낮으면 도구 수도 적습니다 — 0.8.4 는 82개입니다. `hwp_engine_status` 로 확인하세요.
 4. 없으면 GitHub 릴리스에서 플랫폼 빌드를 받아 **`SHA256SUMS.txt` 와 대조**하고 캐시합니다.
 
-받는 동안에도 서버는 즉시 뜨고 로컬 도구 35개를 씁니다. 준비가 끝나면
+받는 동안에도 서버는 즉시 뜨고 로컬 도구 36개를 씁니다. 준비가 끝나면
 `notifications/tools/list_changed` 를 보내 도구 목록이 자동으로 늘어납니다.
 현재 상태는 `hwp_engine_status` 로 언제든 볼 수 있습니다.
 
 ```bash
 HWP_MCP_PROFILE=full       # rhwp 도구 전부 노출 (기본: curated)
 HWP_MCP_RHWP_BIN=/path/rhwp # 쓸 바이너리를 직접 지정
-HWP_MCP_NO_DOWNLOAD=1      # 받지 않는다 (없으면 로컬 35개만)
+HWP_MCP_NO_DOWNLOAD=1      # 받지 않는다 (없으면 로컬 36개만)
 HWP_MCP_CACHE_DIR=/path     # 캐시 위치
 ```
 
@@ -206,7 +207,7 @@ HWP_MCP_CACHE_DIR=/path     # 캐시 위치
 
 ## 도구 목록
 
-아래는 **로컬 도구 35개**입니다. rhwp 쪽 184개는 위 프로필 절을 보세요.
+아래는 **로컬 도구 36개**입니다. rhwp 쪽 184개는 위 프로필 절을 보세요.
 읽기·렌더는 `.hwp`/`.hwpx` 모두, 로컬 쓰기 도구는 `.hwpx` 전용입니다
 (**`.hwp` 쓰기는 rhwp 도구로 됩니다** — 아래 한계 절 참고).
 
@@ -221,7 +222,7 @@ HWP_MCP_CACHE_DIR=/path     # 캐시 위치
 | `list_hwp_images` | ✅ | ✅ | 임베디드 이미지 목록 (mime, 바이트) |
 | `extract_hwp_images` | ✅ | ✅ | 이미지를 디스크로 추출 |
 
-### 메타 / 조회 (5)
+### 메타 / 조회 (6)
 
 | 도구 | `.hwp` | `.hwpx` | 설명 |
 |------|:---:|:---:|------|
@@ -230,6 +231,7 @@ HWP_MCP_CACHE_DIR=/path     # 캐시 위치
 | `list_hwp_fields` | ✅ | ✅ | 한컴 필드 목록 |
 | `get_hwp_field_value` | ✅ | ✅ | 필드 값 조회 |
 | `list_hwp_bindata` | – | ✅ | `.hwpx` BinData/ 엔트리 목록 |
+| `hwp_engine_status` | – | – | rhwp 엔진 상태·버전·출처·노출 도구 수 (파일 불필요) |
 
 ### 시각 렌더 (4)
 
@@ -291,11 +293,14 @@ HWP_MCP_CACHE_DIR=/path     # 캐시 위치
 | **각주(footnote)** | ✅ | 결과 끝에 `--- footnotes ---` 블록, `[1] 본문…` 형태 |
 | **수식(equation)** | ✅ | OWPML script 형태 (예: `TIMES LEFT ( {a} over {b} RIGHT )`), `--- equations ---` 블록 |
 | 페이지 SVG 렌더 | ✅ | `render_hwp_page` |
-| 텍스트박스 본문 | ❌ | rhwp의 `createShapeControl`은 만들지만 `getTextBoxControlIndex` 반환 패턴이 비명시적 — v0.3에서 trace |
-| 미주(endnote) | – | rhwp 자체 미지원 (footnote만) |
-| 차트(chart) | ❌ | v0.3 이후 |
+| 텍스트박스 본문 | ⚠️ | 로컬 도구는 미지원. rhwp 도구에 도형 계열(`hwp_insert_shape` · `hwp_set_shape`)은 있으나 텍스트박스 전용 추출 도구는 없습니다 |
+| 미주(endnote) | ⚠️ | 로컬 도구는 각주만. rhwp `hwp_explain` 이 각주·미주 **개수**를 보고하고 `hwp_insert_endnote` 로 삽입합니다 |
+| 차트(chart) | ✅ | rhwp 도구 — `hwp_charts`(목록) · `hwp_chart_to_csv`(숫자 데이터 CSV) · `hwp_csv_to_chart`(되돌려 넣기) |
 
-## 작성 매트릭스
+## 작성 매트릭스 — 로컬 도구
+
+아래 ❌ 는 **로컬 도구 한정**입니다. `.hwp` 쓰기와 v0.3 로 밀려 있던 항목은 v0.4 부터
+rhwp 도구로 됩니다 — 바로 아래 표를 보세요.
 
 | 작업 | `.hwp` | `.hwpx` | 비고 |
 |---|:---:|:---:|---|
@@ -308,17 +313,33 @@ HWP_MCP_CACHE_DIR=/path     # 캐시 위치
 | 표 행 추가 / 삭제 | ❌ | ✅ | `append_hwp_table_row` / `delete_hwp_table_row` |
 | 이미지 교체 / 삭제 | ❌ | ✅ | `replace_hwp_image` / `delete_hwp_image` |
 | 새 문서 생성 (텍스트) | – | ✅ | `create_hwpx_document` |
-| 새 문서 생성 (표) | – | ⚠️ | 텍스트 행으로 평탄화 (v0.3에서 진짜 OWPML 표) |
+| 새 문서 생성 (표) | – | ⚠️ | 텍스트 행으로 평탄화. 진짜 표는 rhwp `hwp_insert_table` |
 | 새 이미지 삽입 | ❌ | ✅ | `insert_hwp_image` |
 | 표 열 추가 / 삭제 | ❌ | ✅ | `append_hwp_table_column` / `delete_hwp_table_column` |
 | 셀 병합 (가로·세로) | ❌ | ✅ | `merge_hwp_cells_horizontal` / `merge_hwp_cells_vertical` |
 | 글자 서식 (색·볼드·이탤릭·밑줄·크기) | ❌ | ✅ | `apply_hwp_text_style` |
 | 문단 서식 (정렬·들여쓰기·줄간격) | ❌ | ✅ | `apply_hwp_paragraph_style` |
 | 새 표 삽입 (진짜 OWPML) | ❌ | ⚠️ | `insert_hwp_table` (실험적) |
-| 머리말/꼬리말 신규 삽입 | ❌ | ❌ | v0.3 |
-| 차트·북마크·스타일 정의 | ❌ | ❌ | v0.3 |
+| 머리말/꼬리말 신규 삽입 | ❌ | ❌ | rhwp `hwp_insert_header_footer` · `hwp_set_header_footer_text` |
+| 차트·북마크·스타일 정의 | ❌ | ❌ | rhwp `hwp_set_chart_data` · `hwp_add_bookmark` · `hwp_apply_style` |
 
-> `.hwp` 바이너리 쓰기는 rhwp 0.7.7 의 `exportHwp` 라운드트립 한계로 v0.2에서 미지원. 한컴오피스에서 `.hwpx`로 다른 이름 저장 후 쓰기 도구를 사용하시거나, v0.3 릴리스를 기다려주세요.
+> **`.hwp` 바이너리 쓰기는 v0.4 부터 됩니다 — rhwp 도구로.** 로컬 쓰기 도구는 `@rhwp/core` 0.7.x 의
+> `exportHwp` 라운드트립 한계 때문에 여전히 `.hwpx` 전용이지만, `hwp_replace_text` · `hwp_set_cell` ·
+> `hwp_fill_fields` 같은 rhwp 편집 도구는 **입력 형식을 보존**해 `.hwp` 를 그대로 고쳐 저장합니다.
+> 한컴오피스로 `.hwpx` 로 바꿔 저장할 필요가 없습니다.
+>
+> | rhwp 도구로 추가로 되는 것 | 도구 |
+> |---|---|
+> | `.hwp` 직접 치환·셀 수정·필드 채우기 | `hwp_replace_text` · `hwp_set_cell` · `hwp_fill_fields` |
+> | 머리말/꼬리말 신규 삽입 | `hwp_insert_header_footer` · `hwp_set_header_footer_text` |
+> | 차트 읽기·수정 | `hwp_charts` · `hwp_chart_to_csv` · `hwp_csv_to_chart` · `hwp_set_chart_data` |
+> | 북마크 | `hwp_add_bookmark` · `hwp_rename_bookmark` · `hwp_delete_bookmark` |
+> | 스타일 적용 | `hwp_apply_style` · `hwp_apply_cell_style` |
+> | 수식 삽입·속성 | `hwp_insert_equation` · `hwp_set_equation_properties` |
+> | 미주 삽입 | `hwp_insert_endnote` · `hwp_apply_endnote_shape` |
+> | 도형·그룹 | `hwp_insert_shape` · `hwp_set_shape` · `hwp_group_shapes` |
+>
+> `HWP_MCP_PROFILE=full` 로 열립니다 (기본 큐레이션에는 없습니다).
 
 ---
 
@@ -413,9 +434,10 @@ AI: 9/9 페이지 SVG 저장 (rendered 9/9 pages):
 - **크로스 포맷 저장** — 로컬 도구는 `.hwpx` → `.hwpx` 로만 저장합니다. rhwp 도구는
   입력 형식을 보존하고, `.hwpx` 입력에 `-o ….hwp` 를 주면 경고와 함께 HWP5 로 저장합니다
   (이미지·차트가 유실될 수 있습니다).
-- **머리말/꼬리말/각주 추출 가능, 텍스트박스/미주/수식은 v0.3** — `read_hwp_text` 결과에 머리말은 `--- headers ---`, 꼬리말은 `--- footers ---`, 각주는 `--- footnotes ---` 블록으로 표시됩니다. 텍스트박스 본문, 미주, 수식 추출은 v0.3 예정.
+- **머리말·꼬리말·각주·수식은 추출됩니다. 남은 것은 텍스트박스 본문뿐입니다.** `read_hwp_text` 결과에 머리말 `--- headers ---` · 꼬리말 `--- footers ---` · 각주 `--- footnotes ---` · 수식 `--- equations ---` 블록으로 나옵니다. 미주는 rhwp `hwp_explain` 이 개수를 보고합니다. 텍스트박스 본문 추출은 rhwp 에도 전용 도구가 없습니다.
 - **검색어가 두 텍스트 노드에 걸치면 매칭 안 됨** — 예: 한 `<hp:t>`가 "산업"으로 끝나고 다음이 "AI"로 시작하면 "산업AI"는 매칭 X. 한컴 hwpctl과 동일한 한계입니다.
-- **`create_hwpx_document`의 표는 v0.2에서 텍스트 행으로 평탄화** — 진짜 OWPML 표는 v0.3에서.
+- **`create_hwpx_document` 의 표는 텍스트 행으로 평탄화됩니다** — 진짜 OWPML 표가 필요하면 rhwp `hwp_insert_table` 을 쓰세요 (`HWP_MCP_PROFILE=full`).
+- **`PATH` 에 낡은 rhwp 가 있으면 도구가 184개보다 적습니다.** 해석 순서상 `PATH` 의 `rhwp` 를 먼저 쓰기 때문입니다 (2026-11-19 실측: `rhwp 0.8.4` → 82개, `0.9.1` → 184개). 항상 우리가 고정한 버전을 쓰려면 `HWP_MCP_RHWP_BIN` 을 비우고 `PATH` 에서 `rhwp` 를 빼거나, `hwp_engine_status` 로 `version` 과 `source` 를 확인하세요.
 
 ---
 
@@ -472,10 +494,14 @@ GitHub 릴리스에서 직접 받고 SHA256 으로 대조합니다. rhwp 의 제
 
 - ✨ **rhwp 가 주는 기능 전부 사용 가능** — `rhwp mcp-serve` 를 중계해 도구 **184개**를 엽니다.
   목록을 코드에 적지 않고 런타임에 받아 오므로 rhwp 업그레이드를 자동으로 따라갑니다.
-- ✨ **프로필** — 기본은 로컬 35 + 엄선 15 = **50개**. `HWP_MCP_PROFILE=full` 로 219개 전부.
+- ✨ **프로필** — 기본은 로컬 36 + 엄선 15 = **51개**. `HWP_MCP_PROFILE=full` 로 220개 전부.
   (184개를 기본으로 열면 AI 의 도구 선택 정확도와 컨텍스트가 같이 나빠집니다.)
 - ✨ **`.hwp` 직접 쓰기** — rhwp 편집 도구는 입력 형식을 보존합니다. `.hwpx` 로 바꿔
   저장할 필요가 없어졌습니다.
+- 📝 **README 의 낡은 로드맵 정정** — 「v0.3 예정」 으로 적혀 있던 차트·북마크·스타일·미주·
+  머리말 신규 삽입·수식 삽입이 rhwp 0.9.1 에 **전부 있습니다**(2026-11-19 실측). 작성/추출
+  매트릭스와 한계 절을 실측대로 고쳤고, 로컬 도구 수도 35 → 36 으로 맞췄습니다
+  (`hwp_engine_status` 를 세지 않고 있었습니다).
 - ✨ **`hwp_engine_status`** — 엔진 상태·버전·출처·노출 도구 수를 한 번에 봅니다.
 - ✨ **바이너리 자동 확보** — `HWP_MCP_RHWP_BIN` → 캐시 → `PATH` → GitHub 릴리스 순으로
   찾고, 받을 때는 `SHA256SUMS.txt` 와 대조합니다. 받는 동안에도 서버는 즉시 뜨고
